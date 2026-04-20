@@ -13,11 +13,15 @@ export function MapView({
   nearbyPlaces,
   selectedMarker,
   placementPreview,
+  onSelectMarker,
+  deployedStructures,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
   selectedMarker: string | null;
   placementPreview: PlacementPreview | null;
+  onSelectMarker: (id: string) => void;
+  deployedStructures: string[];
 }) {
   return (
     <section className="map-view">
@@ -30,7 +34,7 @@ export function MapView({
         </div>
 
         <BaseMarker label="Base Core" active={selectedMarker === "base-core"} />
-        <StructureLayer />
+        <StructureLayer deployedCount={deployedStructures.length} />
         <EnemyLayer />
         <div className="map-place-list">
           {nearbyPlaces.map((place) => (
@@ -38,6 +42,8 @@ export function MapView({
               key={place.id}
               place={place}
               selected={selectedMarker === place.id}
+              deployed={deployedStructures.includes(place.id)}
+              onClick={() => onSelectMarker(place.id)}
             />
           ))}
         </div>

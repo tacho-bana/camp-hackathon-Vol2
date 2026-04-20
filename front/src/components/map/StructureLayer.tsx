@@ -1,8 +1,8 @@
-export function StructureLayer() {
+export function StructureLayer({ deployedCount }: { deployedCount: number }) {
   return (
     <div className="layer layer-structure">
       <span>StructureLayer</span>
-      <span>renders base defenses and placed objects</span>
+      <span>deployed structures: {deployedCount}</span>
     </div>
   );
 }
