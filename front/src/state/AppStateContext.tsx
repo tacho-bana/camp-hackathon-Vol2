@@ -21,17 +21,22 @@ type AppStateValue = {
 };
 
 const defaultBaseSummary: BaseSummary = {
-  name: "North Ridge Base",
-  level: 4,
-  durability: 82,
-  energy: 68,
+  name: "Home Beacon",
+  level: 3,
+  durability: 88,
+  energy: 74,
+  homeArea: "Riverside Block C",
+  structuresPlaced: 5,
+  patrolDistanceKm: 2.6,
 };
 
 const defaultWaveSummary: WaveSummary = {
-  id: "wave-17",
-  title: "Signal Storm",
-  threat: 7,
-  remainingEnemies: 12,
+  id: "wave-021",
+  title: "Night Route Sweep",
+  threat: 5,
+  remainingEnemies: 9,
+  phase: "outing",
+  nextTickSec: 18,
 };
 
 const defaultSettings: Settings = {
@@ -61,7 +66,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       activeWaveSummary,
       settings,
       signIn: () => {
-        setCurrentUser({ id: "user-01", name: "Astra", role: "captain" });
+        setCurrentUser({ id: "user-01", name: "Riku", role: "captain" });
         setAuthStatus("authenticated");
       },
       signOut: () => {
@@ -88,6 +93,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAppState() {
   const context = useContext(AppStateContext);
 

@@ -20,6 +20,9 @@ export type BaseSummary = {
   level: number;
   durability: number;
   energy: number;
+  homeArea: string;
+  structuresPlaced: number;
+  patrolDistanceKm: number;
 };
 
 export type WaveSummary = {
@@ -27,6 +30,8 @@ export type WaveSummary = {
   title: string;
   threat: number;
   remainingEnemies: number;
+  phase: "outing" | "defense";
+  nextTickSec: number;
 };
 
 export type Settings = {
@@ -44,14 +49,34 @@ export type MapViewport = {
 export type NearbyPlace = {
   id: string;
   name: string;
-  kind: "resource" | "safe-zone" | "ruin";
+  kind:
+    | "electronics-shop"
+    | "convenience-store"
+    | "cafe"
+    | "park"
+    | "station"
+    | "avenue";
   distance: number;
 };
 
 export type PlacementPreview = {
-  kind: "wall" | "turret" | "sensor";
+  kind: StructureType;
   x: number;
   y: number;
+};
+
+export type StructureType =
+  | "electric_shop_tower"
+  | "supply_depot"
+  | "cafe_heal_node"
+  | "park_scout_node"
+  | "station_support"
+  | "avenue_hazard";
+
+export type PlaceTransformRule = {
+  sourceKind: NearbyPlace["kind"];
+  structureType: StructureType;
+  effect: string;
 };
 
 export type BattleEntry = {
