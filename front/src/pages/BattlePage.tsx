@@ -1,45 +1,77 @@
 import { useMemo, useState } from "react";
 import { BattleFeed } from "../components/battle/BattleFeed";
 import { RewardModal } from "../components/battle/RewardModal";
+import { useAppState } from "../state/AppStateContext";
 import type { BattleEntry } from "../types/game";
 
 export function BattlePage() {
   const [page, setPage] = useState(1);
   const [showReward, setShowReward] = useState(false);
+  const [localEnemyCount, setLocalEnemyCount] = useState(7);
+  const [tickCount, setTickCount] = useState(0);
+  const { currentBaseSummary, updateBaseSummary, updateWaveSummary } =
+    useAppState();
 
   const entries = useMemo<BattleEntry[]>(
     () => [
       {
         id: "1",
-        time: "08:12",
-        actor: "Drone",
-        message: "enemy located near ridge",
+        time: "20:12",
+        actor: "Scanner",
+        message: "enemy wave detected on avenue ingress",
         tone: "warning",
       },
       {
         id: "2",
-        time: "08:14",
-        actor: "Scout",
-        message: "fallback path secured",
+        time: "20:14",
+        actor: "EMP Tower",
+        message: "front runners slowed with short stun",
         tone: "info",
       },
       {
         id: "3",
-        time: "08:18",
-        actor: "Base",
-        message: "reinforcement wave deployed",
+        time: "20:18",
+        actor: "Home Beacon",
+        message: "base sustained and rerouted remaining units",
         tone: "success",
       },
     ],
     [],
   );
 
+  const handleRunTick = () => {
+    setTickCount((value) => value + 1);
+
+    setLocalEnemyCount((current) => {
+      const nextValue = Math.max(0, current - 2);
+      updateWaveSummary({
+        remainingEnemies: nextValue,
+        phase: "defense",
+        nextTickSec: 18,
+      });
+
+      if (nextValue === 0) {
+        setShowReward(true);
+      }
+
+      return nextValue;
+    });
+
+    updateBaseSummary({
+      durability: Math.max(0, currentBaseSummary.durability - 1),
+    });
+  };
+
   return (
     <section className="content-panel stack-layout">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Battle</p>
-          <h2>Battle feed</h2>
+          <p className="eyebrow">Defense Phase</p>
+          <h2>Tick-driven auto defense</h2>
+          <p className="muted">
+            Frontend simulation of enemy advance toward home base for API
+            integration.
+          </p>
         </div>
         <div className="inline-controls">
           <button
@@ -60,20 +92,40 @@ export function BattlePage() {
         </div>
       </div>
 
+      <div className="grid-cards two-up">
+        <article className="feature-card stat-card">
+          <strong>{localEnemyCount}</strong>
+          <span>enemies remaining</span>
+        </article>
+        <article className="feature-card stat-card">
+          <strong>{tickCount}</strong>
+          <span>ticks executed</span>
+        </article>
+      </div>
+
       <BattleFeed entries={entries} />
 
       <button
         type="button"
         className="primary-button align-left"
+        onClick={handleRunTick}
+      >
+        Run defense tick
+      </button>
+
+      <button
+        type="button"
+        className="ghost-button align-left"
         onClick={() => setShowReward(true)}
       >
-        Open reward
+        Open reward preview
       </button>
 
       <RewardModal
         open={showReward}
-        title="Recovered salvage"
-        description="This modal represents the end-of-wave reward state and can be driven by battle outcomes."
+        title="Night defense rewards"
+        description="+120 XP, +1 Pulse Cell, and +1 Repair Kit from successful auto defense."
+        onClose={() => setShowReward(false)}
       />
     </section>
   );
