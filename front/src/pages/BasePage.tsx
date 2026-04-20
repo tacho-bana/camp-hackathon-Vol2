@@ -7,8 +7,12 @@ export function BasePage() {
     <section className="content-panel">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Base</p>
+          <p className="eyebrow">Home Base</p>
           <h2>{currentBaseSummary.name}</h2>
+          <p className="muted">
+            Home coordinates are masked as an area label on the client for
+            privacy.
+          </p>
         </div>
         <button
           type="button"
@@ -19,7 +23,7 @@ export function BasePage() {
             })
           }
         >
-          Simulate damage
+          Simulate enemy hit
         </button>
       </div>
 
@@ -32,7 +36,24 @@ export function BasePage() {
           <strong>{currentBaseSummary.durability}%</strong>
           <span>durability</span>
         </article>
+        <article className="feature-card stat-card">
+          <strong>{currentBaseSummary.structuresPlaced}</strong>
+          <span>active structures</span>
+        </article>
+        <article className="feature-card stat-card">
+          <strong>{currentBaseSummary.patrolDistanceKm.toFixed(1)} km</strong>
+          <span>today movement distance</span>
+        </article>
       </div>
+
+      <article className="feature-card">
+        <strong>Home area display</strong>
+        <span>{currentBaseSummary.homeArea}</span>
+        <span>
+          Server-authoritative validation is expected for placement and battle
+          outcomes.
+        </span>
+      </article>
     </section>
   );
 }

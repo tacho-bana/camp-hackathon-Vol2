@@ -12,13 +12,14 @@ export function LoginPage() {
   return (
     <section className="auth-screen">
       <div className="hero-panel">
-        <p className="eyebrow">Login</p>
-        <h1>Mission Control</h1>
+        <p className="eyebrow">Sign In</p>
+        <h1>Urban Defense Walker</h1>
         <p className="lead">
-          画面遷移、グローバル状態、ローカル状態を整理したフロントエンド設計の入口です。
+          Convert real movement into structure deployment, then survive nightly
+          auto defense around your home area.
         </p>
         <button type="button" className="primary-button" onClick={handleSignIn}>
-          Enter dashboard
+          Start solo operation
         </button>
       </div>
     </section>

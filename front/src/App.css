@@ -157,6 +157,24 @@
   flex: 1 1 260px;
 }
 
+.quick-link {
+  text-align: left;
+}
+
+.roadmap-card {
+  gap: 14px;
+}
+
+.roadmap-list {
+  display: grid;
+  gap: 8px;
+}
+
+.roadmap-list span {
+  padding-left: 12px;
+  border-left: 2px solid rgba(125, 211, 252, 0.4);
+}
+
 .feature-card,
 .hero-panel,
 .map-canvas,
@@ -235,6 +253,11 @@
 .marker.active {
   border-color: rgba(56, 189, 248, 0.6);
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.2);
+}
+
+.marker-status {
+  color: #86efac;
+  font-size: 0.82rem;
 }
 
 .layer {

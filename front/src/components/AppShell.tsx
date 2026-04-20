@@ -26,10 +26,11 @@ export function AppShell({
     <div className="app-shell">
       <aside className="side-rail">
         <div className="brand-block">
-          <p className="eyebrow">Operations Console</p>
-          <h1>Front-end Design</h1>
+          <p className="eyebrow">Solo Defense Ops</p>
+          <h1>Urban Loop Console</h1>
           <p className="muted">
-            画面、状態、コンポーネントの責務を分離した実装の土台です。
+            Walk outside to deploy structures, then defend your home area during
+            auto battle ticks.
           </p>
         </div>
 
@@ -42,11 +43,10 @@ export function AppShell({
         </section>
 
         <section className="summary-card">
-          <span className="summary-label">Base</span>
+          <span className="summary-label">Home Area</span>
           <strong>{currentBaseSummary.name}</strong>
           <span className="summary-meta">
-            Level {currentBaseSummary.level} / Energy{" "}
-            {currentBaseSummary.energy}
+            {currentBaseSummary.homeArea} / Energy {currentBaseSummary.energy}
           </span>
         </section>
 
@@ -55,7 +55,7 @@ export function AppShell({
           <strong>{activeWaveSummary.title}</strong>
           <span className="summary-meta">
             Threat {activeWaveSummary.threat} / Enemies{" "}
-            {activeWaveSummary.remainingEnemies}
+            {activeWaveSummary.remainingEnemies} / {activeWaveSummary.phase}
           </span>
         </section>
 
