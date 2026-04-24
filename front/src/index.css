@@ -1,0 +1,53 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    "Space Grotesk", "Sora", "Noto Sans JP", "Segoe UI Variable", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #d7e0ea;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(56, 189, 248, 0.16),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(250, 204, 21, 0.12),
+      transparent 24%
+    ),
+    #08111d;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
