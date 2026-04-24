@@ -9,7 +9,8 @@
 `.env.local` ファイルを作成し、以下を設定してください：
 
 ```
-VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_token_here
+VITE_MAPBOX_ACCESS_TOKEN=
+VITE_API_BASE_URL=http://localhost:8001
 ```
 
 ## 開発コマンド
