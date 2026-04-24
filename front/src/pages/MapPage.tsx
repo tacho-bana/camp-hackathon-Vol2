@@ -76,23 +76,29 @@ export function MapPage() {
       id: "poi-01",
       name: "アキバスパークス",
       kind: "electronics-shop",
+      lat: 35.6847,
+      lng: 139.7496,
       distance: 74,
     },
     {
       id: "poi-02",
       name: "カイトマート",
       kind: "convenience-store",
+      lat: 35.6781,
+      lng: 139.7566,
       distance: 162,
     },
     {
       id: "poi-03",
       name: "ブルーランタンカフェ",
       kind: "cafe",
+      lat: 35.6854,
+      lng: 139.7636,
       distance: 116,
     },
-    { id: "poi-04", name: "リバーパーク", kind: "park", distance: 228 },
-    { id: "poi-05", name: "ホライズン駅", kind: "station", distance: 330 },
-    { id: "poi-06", name: "イーストアベニュー", kind: "avenue", distance: 178 },
+    { id: "poi-04", name: "リバーパーク", kind: "park", lat: 35.6788, lng: 139.7706, distance: 228 },
+    { id: "poi-05", name: "ホライズン駅", kind: "station", lat: 35.6861, lng: 139.7776, distance: 330 },
+    { id: "poi-06", name: "イーストアベニュー", kind: "avenue", lat: 35.6795, lng: 139.7846, distance: 178 },
   ]);
 
   const selectedPlace = useMemo(

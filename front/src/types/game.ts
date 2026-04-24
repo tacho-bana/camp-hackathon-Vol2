@@ -1,3 +1,59 @@
+// -------------------------------------------------------
+// 共通プリミティブ
+// -------------------------------------------------------
+
+export type LatLng = {
+  lat: number;
+  lng: number;
+};
+
+// -------------------------------------------------------
+// ゲームフェーズ
+// -------------------------------------------------------
+
+export type GamePhase = "waiting" | "prep" | "battle" | "result";
+
+// -------------------------------------------------------
+// フロントエンド用ゲームエンティティ
+// -------------------------------------------------------
+
+/** フロントが保持する敵の状態（API の EnemyResponse をマッピング） */
+export type Enemy = {
+  id: string;
+  lat: number;
+  lng: number;
+  hp: number;
+  maxHp: number;
+  speed: number;
+  state: "spawned" | "moving" | "attacking" | "dead";
+};
+
+/** フロントが保持する防衛施設の状態（API の StructureResponse をマッピング） */
+export type Structure = {
+  id: string;
+  lat: number;
+  lng: number;
+  kind: "turret" | "wall" | "slow";
+  hp: number;
+  maxHp: number;
+  rangeM: number;
+};
+
+/** ゲーム全体の状態を集約する型 */
+export type GameState = {
+  phase: GamePhase;
+  bitcoin: number;
+  homeCoords: LatLng | null;
+  homeHp: number;
+  structures: Structure[];
+  enemies: Enemy[];
+  waveId: string | null;
+};
+
+// -------------------------------------------------------
+// ルーティング
+// -------------------------------------------------------
+
 export type RoutePath =
   | "/login"
   | "/home"
@@ -57,6 +113,8 @@ export type NearbyPlace = {
     | "park"
     | "station"
     | "avenue";
+  lat: number;
+  lng: number;
   distance: number;
 };
 
