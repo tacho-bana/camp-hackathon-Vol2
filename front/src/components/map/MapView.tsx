@@ -44,6 +44,7 @@ export function MapView({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const currentPositionMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const nearbyPlaceMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const hasAutocenteredRef = useRef(false);
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
@@ -149,11 +150,9 @@ export function MapView({
     nearbyPlaceMarkersRef.current.forEach((m) => m.remove());
     nearbyPlaceMarkersRef.current = [];
 
-    nearbyPlaces.forEach((place, index) => {
-      const longitude = initialCenter.lng + 0.007 * (index - 2.5);
-      const latitude =
-        initialCenter.lat +
-        0.0035 * ((index % 2 === 0 ? 1 : -1) + index / 10);
+    nearbyPlaces.forEach((place) => {
+      const longitude = place.lng;
+      const latitude = place.lat;
 
       const marker = new mapboxgl.Marker({
         color: place.kind === "electronics-shop" ? "#22c55e" : "#f59e0b",
@@ -187,7 +186,7 @@ export function MapView({
     mapRef.current.setZoom(Math.max(12, Math.min(16, viewport.zoom * 2 + 10)));
   }, [viewport, mapStatus]);
 
-  // 現在地マーカーの表示・更新
+  // 現在地マーカーの表示・更新、初回取得時に地図を中心に移動
   useEffect(() => {
     if (!mapRef.current || mapStatus !== "ready" || !currentPosition) {
       return;
@@ -202,6 +201,15 @@ export function MapView({
         currentPosition.lng,
         currentPosition.lat,
       ]);
+    }
+
+    if (!hasAutocenteredRef.current) {
+      hasAutocenteredRef.current = true;
+      mapRef.current.flyTo({
+        center: [currentPosition.lng, currentPosition.lat],
+        zoom: 15,
+        duration: 1200,
+      });
     }
   }, [currentPosition, mapStatus]);
 
