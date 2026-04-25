@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type {
+  Enemy,
   LatLng,
   MapViewport,
   NearbyPlace,
   PlacementPreview,
+  Structure,
 } from "../../types/game";
 import { BaseMarker } from "./BaseMarker";
 import { EnemyLayer } from "./EnemyLayer";
@@ -29,6 +31,9 @@ export function MapView({
   currentPosition,
   isSpoofing,
   onSpoofedLocationSet,
+  structures,
+  enemies,
+  homeCoords,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -39,11 +44,17 @@ export function MapView({
   currentPosition: LatLng | null;
   isSpoofing: boolean;
   onSpoofedLocationSet: (coords: LatLng) => void;
+  structures: Structure[];
+  enemies: Enemy[];
+  homeCoords: LatLng | null;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const currentPositionMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const homeMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const nearbyPlaceMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const structureMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const enemyMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const hasAutocenteredRef = useRef(false);
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
@@ -71,58 +82,6 @@ export function MapView({
     );
 
     map.on("load", () => {
-      map.addSource("route-line", {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          geometry: {
-            type: "LineString",
-            coordinates: [
-              [139.755, 35.6765],
-              [139.764, 35.679],
-              [139.771, 35.682],
-              [139.781, 35.686],
-            ],
-          },
-          properties: {},
-        },
-      });
-
-      map.addLayer({
-        id: "route-line-layer",
-        type: "line",
-        source: "route-line",
-        paint: {
-          "line-color": "#22c55e",
-          "line-width": 4,
-          "line-opacity": 0.85,
-        },
-      });
-
-      map.addSource("base-point", {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [139.7671, 35.6812],
-          },
-          properties: {},
-        },
-      });
-
-      map.addLayer({
-        id: "base-point-layer",
-        type: "circle",
-        source: "base-point",
-        paint: {
-          "circle-radius": 9,
-          "circle-color": "#38bdf8",
-          "circle-stroke-color": "#d7e0ea",
-          "circle-stroke-width": 2,
-        },
-      });
-
       setMapStatus("ready");
     });
 
@@ -136,6 +95,8 @@ export function MapView({
     return () => {
       currentPositionMarkerRef.current?.remove();
       currentPositionMarkerRef.current = null;
+      homeMarkerRef.current?.remove();
+      homeMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -147,22 +108,19 @@ export function MapView({
       return;
     }
 
-    nearbyPlaceMarkersRef.current.forEach((m) => m.remove());
-    nearbyPlaceMarkersRef.current = [];
-
     nearbyPlaces.forEach((place) => {
-      const longitude = place.lng;
-      const latitude = place.lat;
-
       const marker = new mapboxgl.Marker({
         color: place.kind === "electronics-shop" ? "#22c55e" : "#f59e0b",
       })
-        .setLngLat([longitude, latitude])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 20 }).setHTML(
-            `<strong>${place.name}</strong><br />${place.kind}<br />距離 ${place.distance}m`,
-          ),
-        )
+        .setLngLat([place.lng, place.lat])
+        .setPopup((() => {
+          const el = document.createElement("div");
+          const strong = document.createElement("strong");
+          strong.textContent = place.name;
+          const meta = document.createTextNode(` ${place.kind}  距離 ${place.distance}m`);
+          el.append(strong, document.createElement("br"), meta);
+          return new mapboxgl.Popup({ offset: 20 }).setDOMContent(el);
+        })())
         .addTo(mapRef.current!);
 
       nearbyPlaceMarkersRef.current.push(marker);
@@ -213,6 +171,30 @@ export function MapView({
     }
   }, [currentPosition, mapStatus]);
 
+  // 本拠地マーカー（homeCoords が設定されたら表示）
+  useEffect(() => {
+    if (!mapRef.current || mapStatus !== "ready") return;
+
+    if (!homeCoords) {
+      homeMarkerRef.current?.remove();
+      homeMarkerRef.current = null;
+      return;
+    }
+
+    if (!homeMarkerRef.current) {
+      const el = document.createElement("div");
+      el.style.cssText =
+        "width:30px;height:30px;background:#fbbf24;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,0.6);cursor:default;";
+      el.textContent = "🏠";
+      homeMarkerRef.current = new mapboxgl.Marker({ element: el })
+        .setLngLat([homeCoords.lng, homeCoords.lat])
+        .setPopup(new mapboxgl.Popup({ offset: 20 }).setHTML("<strong>本拠地</strong>"))
+        .addTo(mapRef.current);
+    } else {
+      homeMarkerRef.current.setLngLat([homeCoords.lng, homeCoords.lat]);
+    }
+  }, [homeCoords, mapStatus]);
+
   // 位置偽装モード: 地図クリックで現在地をセット
   useEffect(() => {
     if (!mapRef.current || mapStatus !== "ready") {
@@ -239,6 +221,85 @@ export function MapView({
     };
   }, [isSpoofing, onSpoofedLocationSet, mapStatus]);
 
+  // 構造物マーカーの差分管理
+  useEffect(() => {
+    if (!mapRef.current || mapStatus !== "ready") {
+      return;
+    }
+
+    const currentIds = new Set(structures.map((s) => s.id));
+    // 削除
+    for (const [id, marker] of structureMarkersRef.current.entries()) {
+      if (!currentIds.has(id)) {
+        marker.remove();
+        structureMarkersRef.current.delete(id);
+      }
+    }
+    // 追加・更新
+    for (const structure of structures) {
+      if (!structureMarkersRef.current.has(structure.id)) {
+        const marker = new mapboxgl.Marker({ color: "#f97316" })
+          .setLngLat([structure.lng, structure.lat])
+          .setPopup((() => {
+            const el = document.createElement("div");
+            const strong = document.createElement("strong");
+            strong.textContent = structure.kind;
+            el.append(strong, document.createElement("br"), `HP: ${structure.hp}/${structure.maxHp}`);
+            return new mapboxgl.Popup({ offset: 20 }).setDOMContent(el);
+          })())
+          .addTo(mapRef.current!);
+        structureMarkersRef.current.set(structure.id, marker);
+      } else {
+        structureMarkersRef.current
+          .get(structure.id)!
+          .setLngLat([structure.lng, structure.lat]);
+      }
+    }
+  }, [structures, mapStatus]);
+
+  // 敵マーカーの差分管理
+  useEffect(() => {
+    if (!mapRef.current || mapStatus !== "ready") {
+      return;
+    }
+
+    const currentIds = new Set(enemies.map((e) => e.id));
+    // 削除
+    for (const [id, marker] of enemyMarkersRef.current.entries()) {
+      if (!currentIds.has(id)) {
+        marker.remove();
+        enemyMarkersRef.current.delete(id);
+      }
+    }
+    // 追加・更新
+    for (const enemy of enemies) {
+      if (enemy.state === "dead") {
+        if (enemyMarkersRef.current.has(enemy.id)) {
+          enemyMarkersRef.current.get(enemy.id)!.remove();
+          enemyMarkersRef.current.delete(enemy.id);
+        }
+        continue;
+      }
+      if (!enemyMarkersRef.current.has(enemy.id)) {
+        const marker = new mapboxgl.Marker({ color: "#ef4444" })
+          .setLngLat([enemy.lng, enemy.lat])
+          .setPopup((() => {
+            const el = document.createElement("div");
+            const strong = document.createElement("strong");
+            strong.textContent = "敵";
+            el.append(strong, document.createElement("br"), `HP: ${enemy.hp}/${enemy.maxHp}`);
+            return new mapboxgl.Popup({ offset: 20 }).setDOMContent(el);
+          })())
+          .addTo(mapRef.current!);
+        enemyMarkersRef.current.set(enemy.id, marker);
+      } else {
+        enemyMarkersRef.current
+          .get(enemy.id)!
+          .setLngLat([enemy.lng, enemy.lat]);
+      }
+    }
+  }, [enemies, mapStatus]);
+
   return (
     <section className="map-view">
       <div className="map-canvas">
@@ -256,8 +317,8 @@ export function MapView({
             label="拠点コア"
             active={selectedMarker === "base-core"}
           />
-          <StructureLayer deployedCount={deployedStructures.length} />
-          <EnemyLayer />
+          <StructureLayer structures={structures} />
+          <EnemyLayer enemies={enemies} />
           <div className="map-place-list">
             {nearbyPlaces.map((place) => (
               <PlaceMarker
