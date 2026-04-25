@@ -44,8 +44,9 @@ type AppStateValue = {
   setHomeCoords: (coords: LatLng | null) => void;
   mergeEnemies: (incoming: Enemy[]) => void;
   setHomeHp: (hp: number) => void;
-  setStructures: (structures: Structure[]) => void;
+  setStructures: (updater: Structure[] | ((prev: Structure[]) => Structure[])) => void;
   setEnemies: (enemies: Enemy[]) => void;
+  resetGame: () => void;
 };
 
 const defaultBaseSummary: BaseSummary = {
@@ -143,7 +144,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         }),
       setHomeCoords: (coords) => setHomeCoordsState(coords),
       setHomeHp: (hp) => setHomeHpState(hp),
-      setStructures: (structures) => setStructuresState(structures),
+      setStructures: (updater) =>
+        setStructuresState((prev) =>
+          typeof updater === "function" ? updater(prev) : updater,
+        ),
       setEnemies: (enemies) => setEnemiesState(enemies),
       mergeEnemies: (incoming) =>
         setEnemiesState((prev) => {
@@ -151,6 +155,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           incoming.forEach((e) => map.set(e.id, e));
           return Array.from(map.values());
         }),
+      resetGame: () => {
+        setGamePhaseState("waiting");
+        setBitcoin(300);
+        setHomeCoordsState(null);
+        setHomeHpState(100);
+        setStructuresState([]);
+        setEnemiesState([]);
+      },
     }),
     [
       activeWaveSummary,
