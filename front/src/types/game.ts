@@ -1,3 +1,5 @@
+import type { EnemyState, StructureApiType } from "./api";
+
 // -------------------------------------------------------
 // 共通プリミティブ
 // -------------------------------------------------------
@@ -25,7 +27,7 @@ export type Enemy = {
   hp: number;
   maxHp: number;
   speed: number;
-  state: "spawned" | "moving" | "attacking" | "dead";
+  state: EnemyState;
 };
 
 /** フロントが保持する防衛施設の状態（API の StructureResponse をマッピング） */
@@ -33,7 +35,7 @@ export type Structure = {
   id: string;
   lat: number;
   lng: number;
-  kind: "turret" | "wall" | "slow";
+  kind: StructureApiType;
   hp: number;
   maxHp: number;
   rangeM: number;
