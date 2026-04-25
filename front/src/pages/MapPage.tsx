@@ -2,15 +2,17 @@ import { useMemo, useState } from "react";
 import { BottomActionPanel } from "../components/ui/BottomActionPanel";
 import { MapView } from "../components/map/MapView";
 import { useGeolocation } from "../hooks/useGeolocation";
+import { useNearbyPOI } from "../hooks/useNearbyPOI";
 import { useAppState } from "../state/AppStateContext";
 import type {
   LatLng,
   MapViewport,
-  NearbyPlace,
   PlacementPreview,
   PlaceTransformRule,
   StructureType,
 } from "../types/game";
+
+const CHECK_IN_RADIUS_M = 50;
 
 const transformRules: PlaceTransformRule[] = [
   {
@@ -38,11 +40,6 @@ const transformRules: PlaceTransformRule[] = [
     structureType: "station_support",
     effect: "広域バースト支援",
   },
-  {
-    sourceKind: "avenue",
-    structureType: "avenue_hazard",
-    effect: "敵ルートを加速させる危険地帯",
-  },
 ];
 
 export function MapPage() {
@@ -54,18 +51,19 @@ export function MapPage() {
     updateWaveSummary,
   } = useAppState();
 
-  // 位置情報
   const { position: gpsPosition, error: gpsError } = useGeolocation();
-  const [isSpoofing, setIsSpoofing] = useState(true); // 開発中はデフォルト ON
+  const [isSpoofing, setIsSpoofing] = useState(import.meta.env.DEV);
   const [spoofedPosition, setSpoofedPosition] = useState<LatLng | null>(null);
-  const currentPosition = isSpoofing ? spoofedPosition : (gpsPosition ?? spoofedPosition);
+  const currentPosition = isSpoofing
+    ? spoofedPosition
+    : (gpsPosition ?? spoofedPosition);
 
   const [viewport, setViewport] = useState<MapViewport>({
     x: 24,
     y: 12,
     zoom: 1.4,
   });
-  const [selectedMarker, setSelectedMarker] = useState<string | null>("poi-01");
+  const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
   const [checkedInPlaceIds, setCheckedInPlaceIds] = useState<string[]>([]);
   const [deployedStructures, setDeployedStructures] = useState<string[]>([]);
   const [placementPreview, setPlacementPreview] =
@@ -74,41 +72,12 @@ export function MapPage() {
       x: 14,
       y: 20,
     });
-  const [selectedStage, setSelectedStage] = useState("city-center");
   const [selectedDifficulty, setSelectedDifficulty] = useState("normal");
   const [selectedStructureKind, setSelectedStructureKind] =
     useState<StructureType>("electric_shop_tower");
   const [showSettings, setShowSettings] = useState(false);
 
-  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlace[]>([
-    {
-      id: "poi-01",
-      name: "アキバスパークス",
-      kind: "electronics-shop",
-      lat: 35.6847,
-      lng: 139.7496,
-      distance: 74,
-    },
-    {
-      id: "poi-02",
-      name: "カイトマート",
-      kind: "convenience-store",
-      lat: 35.6781,
-      lng: 139.7566,
-      distance: 162,
-    },
-    {
-      id: "poi-03",
-      name: "ブルーランタンカフェ",
-      kind: "cafe",
-      lat: 35.6854,
-      lng: 139.7636,
-      distance: 116,
-    },
-    { id: "poi-04", name: "リバーパーク", kind: "park", lat: 35.6788, lng: 139.7706, distance: 228 },
-    { id: "poi-05", name: "ホライズン駅", kind: "station", lat: 35.6861, lng: 139.7776, distance: 330 },
-    { id: "poi-06", name: "イーストアベニュー", kind: "avenue", lat: 35.6795, lng: 139.7846, distance: 178 },
-  ]);
+  const nearbyPlaces = useNearbyPOI(currentPosition);
 
   const selectedPlace = useMemo(
     () => nearbyPlaces.find((place) => place.id === selectedMarker) ?? null,
@@ -125,16 +94,6 @@ export function MapPage() {
     [selectedPlace],
   );
 
-  const stageOptions = [
-    { value: "city-center", label: "都心ステージ", note: "敵が多いが報酬高め" },
-    {
-      value: "suburb",
-      label: "郊外ステージ",
-      note: "歩きやすく拠点を置きやすい",
-    },
-    { value: "coastline", label: "湾岸ステージ", note: "広域支援施設が強い" },
-  ] as const;
-
   const difficultyOptions = [
     { value: "easy", label: "やさしい", threat: 2, enemies: 5 },
     { value: "normal", label: "ふつう", threat: 4, enemies: 9 },
@@ -148,38 +107,26 @@ export function MapPage() {
       detail: "EMPで足を止める",
     },
     {
-      kind: "avenue_hazard",
-      label: "近く道に設置して足止め",
-      detail: "通路上で敵を減速",
-    },
-    {
       kind: "park_scout_node",
       label: "近くの敵の進行を遅くする",
       detail: "索敵と進行抑制を両立",
     },
   ] as const;
 
-  const currentStage =
-    stageOptions.find((option) => option.value === selectedStage) ??
-    stageOptions[0];
   const currentDifficulty =
     difficultyOptions.find((option) => option.value === selectedDifficulty) ??
     difficultyOptions[1];
 
   const isPlaying = activeWaveSummary.phase === "defense";
 
-  const canCheckIn = selectedPlace ? selectedPlace.distance <= 50 : false;
+  const canCheckIn = selectedPlace
+    ? selectedPlace.distance <= CHECK_IN_RADIUS_M
+    : false;
   const isCheckedIn = selectedMarker
     ? checkedInPlaceIds.includes(selectedMarker)
     : false;
 
   const handleSimulateMovement = () => {
-    setNearbyPlaces((current) =>
-      current.map((place, index) => ({
-        ...place,
-        distance: Math.max(24, place.distance - (index + 1) * 12),
-      })),
-    );
     setViewport((current) => ({
       ...current,
       x: current.x + 1,
@@ -191,7 +138,6 @@ export function MapPage() {
     if (!selectedMarker || !canCheckIn || isCheckedIn) {
       return;
     }
-
     setCheckedInPlaceIds((current) => [...current, selectedMarker]);
   };
 
@@ -199,11 +145,10 @@ export function MapPage() {
     if (!selectedPlace || !selectedRule || !isCheckedIn) {
       return;
     }
-
-    if (!deployedStructures.includes(selectedPlace.id)) {
-      setDeployedStructures((current) => [...current, selectedPlace.id]);
+    if (deployedStructures.includes(selectedPlace.id)) {
+      return;
     }
-
+    setDeployedStructures((current) => [...current, selectedPlace.id]);
     setPlacementPreview({
       kind: selectedRule.structureType,
       x: Math.round(viewport.x + 4),
@@ -213,7 +158,7 @@ export function MapPage() {
 
   const handleStartGame = () => {
     updateWaveSummary({
-      title: `${currentStage.label} / ${currentDifficulty.label}`,
+      title: currentDifficulty.label,
       threat: currentDifficulty.threat,
       remainingEnemies: currentDifficulty.enemies,
       phase: "defense",
@@ -223,8 +168,8 @@ export function MapPage() {
 
   const handleEndGame = () => {
     updateWaveSummary({
-      title: `${currentStage.label} 待機`,
-      threat: currentDifficulty.threat,
+      title: "待機中",
+      threat: 0,
       remainingEnemies: 0,
       phase: "outing",
       nextTickSec: 0,
@@ -274,51 +219,28 @@ export function MapPage() {
       </div>
 
       {!isPlaying ? (
-        <div className="grid-cards two-up">
-          <article className="feature-card">
-            <strong>ステージ選択</strong>
-            <div className="choice-grid">
-              {stageOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={
-                    option.value === selectedStage
-                      ? "choice-chip active"
-                      : "choice-chip"
-                  }
-                  onClick={() => setSelectedStage(option.value)}
-                >
-                  <span>{option.label}</span>
-                  <small>{option.note}</small>
-                </button>
-              ))}
-            </div>
-          </article>
-
-          <article className="feature-card">
-            <strong>難易度選択</strong>
-            <div className="choice-grid">
-              {difficultyOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={
-                    option.value === selectedDifficulty
-                      ? "choice-chip active"
-                      : "choice-chip"
-                  }
-                  onClick={() => setSelectedDifficulty(option.value)}
-                >
-                  <span>{option.label}</span>
-                  <small>
-                    脅威 {option.threat} / 敵 {option.enemies}
-                  </small>
-                </button>
-              ))}
-            </div>
-          </article>
-        </div>
+        <article className="feature-card">
+          <strong>難易度選択</strong>
+          <div className="choice-grid">
+            {difficultyOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={
+                  option.value === selectedDifficulty
+                    ? "choice-chip active"
+                    : "choice-chip"
+                }
+                onClick={() => setSelectedDifficulty(option.value)}
+              >
+                <span>{option.label}</span>
+                <small>
+                  脅威 {option.threat} / 敵 {option.enemies}
+                </small>
+              </button>
+            ))}
+          </div>
+        </article>
       ) : null}
 
       <article className="feature-card map-briefing">
@@ -374,7 +296,7 @@ export function MapPage() {
         <article className="feature-card">
           <strong>{selectedPlace.name}</strong>
           <span>
-            {selectedPlace.kind} -&gt; {selectedRule.structureType}
+            {selectedPlace.kind} &gt; {selectedRule.structureType}
           </span>
           <span>{selectedRule.effect}</span>
           <span className="muted">
@@ -461,14 +383,12 @@ export function MapPage() {
                 閉じる
               </button>
             </div>
-
             <div className="summary-card">
               <span className="summary-label">ユーザ名</span>
               <strong>{currentUser?.name ?? "ゲスト"}</strong>
               <span className="summary-label">レベル</span>
               <strong>{currentUser?.level ?? 1}</strong>
             </div>
-
             <div className="auth-actions">
               <button
                 type="button"
