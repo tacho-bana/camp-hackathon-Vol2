@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { BottomActionPanel } from "../components/ui/BottomActionPanel";
 import { MapView } from "../components/map/MapView";
+import { useGeolocation } from "../hooks/useGeolocation";
 import { useAppState } from "../state/AppStateContext";
 import type {
+  LatLng,
   MapViewport,
   NearbyPlace,
   PlacementPreview,
@@ -51,6 +53,13 @@ export function MapPage() {
     signOut,
     updateWaveSummary,
   } = useAppState();
+
+  // 位置情報
+  const { position: gpsPosition, error: gpsError } = useGeolocation();
+  const [isSpoofing, setIsSpoofing] = useState(true); // 開発中はデフォルト ON
+  const [spoofedPosition, setSpoofedPosition] = useState<LatLng | null>(null);
+  const currentPosition = isSpoofing ? spoofedPosition : (gpsPosition ?? spoofedPosition);
+
   const [viewport, setViewport] = useState<MapViewport>({
     x: 24,
     y: 12,
@@ -159,7 +168,7 @@ export function MapPage() {
 
   const isPlaying = activeWaveSummary.phase === "defense";
 
-  const canCheckIn = selectedPlace ? selectedPlace.distance <= 90 : false;
+  const canCheckIn = selectedPlace ? selectedPlace.distance <= 50 : false;
   const isCheckedIn = selectedMarker
     ? checkedInPlaceIds.includes(selectedMarker)
     : false;
@@ -245,6 +254,14 @@ export function MapPage() {
             onClick={() => setShowSettings(true)}
           >
             設定
+          </button>
+          <button
+            type="button"
+            className={isSpoofing ? "ghost-button active" : "ghost-button"}
+            onClick={() => setIsSpoofing((prev) => !prev)}
+            title="地図をクリックして現在地を変更するモード"
+          >
+            {isSpoofing ? "偽装 ON" : "偽装 OFF"}
           </button>
           <button
             type="button"
@@ -373,6 +390,9 @@ export function MapPage() {
         placementPreview={placementPreview}
         onSelectMarker={setSelectedMarker}
         deployedStructures={deployedStructures}
+        currentPosition={currentPosition}
+        isSpoofing={isSpoofing}
+        onSpoofedLocationSet={setSpoofedPosition}
       />
 
       {!isPlaying ? (
@@ -414,6 +434,15 @@ export function MapPage() {
         {isPlaying
           ? `防衛中: ${activeWaveSummary.remainingEnemies}体 / ${activeWaveSummary.phase}`
           : `チェックイン状態: ${isCheckedIn ? "変換可能" : "選択中POIに接近してください"}`}
+      </p>
+      <p className="muted">
+        {currentPosition
+          ? `現在地: ${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}${isSpoofing ? " (偽装中)" : ""}`
+          : isSpoofing
+            ? "地図をクリックして現在地を設定してください"
+            : gpsError
+              ? `GPS エラー: ${gpsError}`
+              : "GPS 取得中…"}
       </p>
 
       {showSettings ? (
