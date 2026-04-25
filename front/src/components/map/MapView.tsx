@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type {
+  LatLng,
   MapViewport,
   NearbyPlace,
   PlacementPreview,
@@ -25,6 +26,9 @@ export function MapView({
   placementPreview,
   onSelectMarker,
   deployedStructures,
+  currentPosition,
+  isSpoofing,
+  onSpoofedLocationSet,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -32,9 +36,14 @@ export function MapView({
   placementPreview: PlacementPreview | null;
   onSelectMarker: (id: string) => void;
   deployedStructures: string[];
+  currentPosition: LatLng | null;
+  isSpoofing: boolean;
+  onSpoofedLocationSet: (coords: LatLng) => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const currentPositionMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const nearbyPlaceMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
@@ -113,38 +122,58 @@ export function MapView({
         },
       });
 
-      nearbyPlaces.forEach((place, index) => {
-        const longitude = initialCenter.lng + 0.007 * (index - 2.5);
-        const latitude =
-          initialCenter.lat +
-          0.0035 * ((index % 2 === 0 ? 1 : -1) + index / 10);
-
-        new mapboxgl.Marker({
-          color: place.kind === "electronics-shop" ? "#22c55e" : "#f59e0b",
-        })
-          .setLngLat([longitude, latitude])
-          .setPopup(
-            new mapboxgl.Popup({ offset: 20 }).setHTML(
-              `<strong>${place.name}</strong><br />${place.kind}<br />距離 ${place.distance}m`,
-            ),
-          )
-          .addTo(map);
-      });
-
       setMapStatus("ready");
     });
 
-    map.on("error", () => {
+    map.on("error", (e) => {
+      console.error("[MapView]", e.error);
       setMapStatus("error");
     });
 
     mapRef.current = map;
 
     return () => {
+      currentPositionMarkerRef.current?.remove();
+      currentPositionMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
-  }, [nearbyPlaces]);
+  }, []);
+
+  // nearbyPlaces マーカーを差分管理（地図インスタンスとは別 useEffect）
+  useEffect(() => {
+    if (!mapRef.current || mapStatus !== "ready") {
+      return;
+    }
+
+    nearbyPlaceMarkersRef.current.forEach((m) => m.remove());
+    nearbyPlaceMarkersRef.current = [];
+
+    nearbyPlaces.forEach((place, index) => {
+      const longitude = initialCenter.lng + 0.007 * (index - 2.5);
+      const latitude =
+        initialCenter.lat +
+        0.0035 * ((index % 2 === 0 ? 1 : -1) + index / 10);
+
+      const marker = new mapboxgl.Marker({
+        color: place.kind === "electronics-shop" ? "#22c55e" : "#f59e0b",
+      })
+        .setLngLat([longitude, latitude])
+        .setPopup(
+          new mapboxgl.Popup({ offset: 20 }).setHTML(
+            `<strong>${place.name}</strong><br />${place.kind}<br />距離 ${place.distance}m`,
+          ),
+        )
+        .addTo(mapRef.current!);
+
+      nearbyPlaceMarkersRef.current.push(marker);
+    });
+
+    return () => {
+      nearbyPlaceMarkersRef.current.forEach((m) => m.remove());
+      nearbyPlaceMarkersRef.current = [];
+    };
+  }, [nearbyPlaces, mapStatus]);
 
   useEffect(() => {
     if (!mapRef.current || !mapboxToken || mapStatus !== "ready") {
@@ -157,6 +186,50 @@ export function MapView({
     ]);
     mapRef.current.setZoom(Math.max(12, Math.min(16, viewport.zoom * 2 + 10)));
   }, [viewport, mapStatus]);
+
+  // 現在地マーカーの表示・更新
+  useEffect(() => {
+    if (!mapRef.current || mapStatus !== "ready" || !currentPosition) {
+      return;
+    }
+
+    if (!currentPositionMarkerRef.current) {
+      currentPositionMarkerRef.current = new mapboxgl.Marker({ color: "#3b82f6" })
+        .setLngLat([currentPosition.lng, currentPosition.lat])
+        .addTo(mapRef.current);
+    } else {
+      currentPositionMarkerRef.current.setLngLat([
+        currentPosition.lng,
+        currentPosition.lat,
+      ]);
+    }
+  }, [currentPosition, mapStatus]);
+
+  // 位置偽装モード: 地図クリックで現在地をセット
+  useEffect(() => {
+    if (!mapRef.current || mapStatus !== "ready") {
+      return;
+    }
+
+    const canvas = mapRef.current.getCanvas();
+    canvas.style.cursor = isSpoofing ? "crosshair" : "";
+
+    if (!isSpoofing) {
+      return () => {
+        canvas.style.cursor = "";
+      };
+    }
+
+    const handleClick = (e: mapboxgl.MapMouseEvent) => {
+      onSpoofedLocationSet({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    };
+
+    mapRef.current.on("click", handleClick);
+    return () => {
+      mapRef.current?.off("click", handleClick);
+      canvas.style.cursor = "";
+    };
+  }, [isSpoofing, onSpoofedLocationSet, mapStatus]);
 
   return (
     <section className="map-view">

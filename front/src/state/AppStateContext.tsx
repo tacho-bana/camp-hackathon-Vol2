@@ -41,7 +41,8 @@ type AppStateValue = {
   setGamePhase: (phase: GamePhase) => void;
   addBitcoin: (amount: number) => void;
   spendBitcoin: (amount: number) => void;
-  setHomeCoords: (coords: LatLng) => void;
+  setHomeCoords: (coords: LatLng | null) => void;
+  mergeEnemies: (incoming: Enemy[]) => void;
   setHomeHp: (hp: number) => void;
   setStructures: (structures: Structure[]) => void;
   setEnemies: (enemies: Enemy[]) => void;
@@ -135,11 +136,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       enemies,
       setGamePhase: (phase) => setGamePhaseState(phase),
       addBitcoin: (amount) => setBitcoin((prev) => prev + amount),
-      spendBitcoin: (amount) => setBitcoin((prev) => prev - amount),
+      spendBitcoin: (amount) =>
+        setBitcoin((prev) => {
+          if (prev < amount) return prev;
+          return prev - amount;
+        }),
       setHomeCoords: (coords) => setHomeCoordsState(coords),
       setHomeHp: (hp) => setHomeHpState(hp),
-      setStructures: (s) => setStructuresState(s),
-      setEnemies: (e) => setEnemiesState(e),
+      setStructures: (structures) => setStructuresState(structures),
+      setEnemies: (enemies) => setEnemiesState(enemies),
+      mergeEnemies: (incoming) =>
+        setEnemiesState((prev) => {
+          const map = new Map(prev.map((e) => [e.id, e]));
+          incoming.forEach((e) => map.set(e.id, e));
+          return Array.from(map.values());
+        }),
     }),
     [
       activeWaveSummary,
