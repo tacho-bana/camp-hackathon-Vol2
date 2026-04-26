@@ -12,9 +12,9 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class AuthResponse(BaseModel):
+    message: str
+    user: "UserResponse"
 
 
 class UserResponse(BaseModel):
