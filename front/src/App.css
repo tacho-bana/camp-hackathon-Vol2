@@ -333,6 +333,16 @@
   inset: 0;
 }
 
+.map-enemy-marker {
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+}
+
+.map-enemy-marker canvas {
+  display: block;
+}
+
 .map-overlay {
   position: relative;
   z-index: 2;
