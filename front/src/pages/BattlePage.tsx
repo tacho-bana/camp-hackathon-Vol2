@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { BattleFeed } from "../components/battle/BattleFeed";
+import { EnemyCanvas } from "../components/battle/EnemyCanvas";
 import { RewardModal } from "../components/battle/RewardModal";
 import { useAppState } from "../state/AppStateContext";
 import type { BattleEntry } from "../types/game";
@@ -102,6 +103,12 @@ export function BattlePage() {
           <span>ticks executed</span>
         </article>
       </div>
+
+      <article className="feature-card">
+        <p className="eyebrow">Enemy Preview</p>
+        <h3>p5 enemy render template</h3>
+        <EnemyCanvas />
+      </article>
 
       <BattleFeed entries={entries} />
 

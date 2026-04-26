@@ -1,4 +1,5 @@
 import { navigateTo } from "../routing/navigation";
+import { P5SampleCanvas } from "../components/P5SampleCanvas";
 
 const loopCards = [
   {
@@ -69,6 +70,14 @@ export function HomePage() {
             <span key={item}>{item}</span>
           ))}
         </div>
+      </article>
+
+      <article className="feature-card p5-demo-card">
+        <div>
+          <strong>p5.js playground</strong>
+          <span>Interactive sketch rendered via React component lifecycle.</span>
+        </div>
+        <P5SampleCanvas />
       </article>
 
       <div className="grid-cards">

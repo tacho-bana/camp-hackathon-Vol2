@@ -43,6 +43,22 @@ export default defineConfig([
 ])
 ```
 
+## p5 Setup (React + TypeScript)
+
+This project includes p5 and type definitions.
+
+- `p5`
+- `@types/p5`
+
+The sample integration is implemented in `src/components/P5SampleCanvas.tsx` and rendered from `src/pages/HomePage.tsx`.
+
+If you need to reinstall dependencies:
+
+```bash
+npm install p5
+npm install -D @types/p5
+```
+
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js

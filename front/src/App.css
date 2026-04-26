@@ -184,6 +184,23 @@
   gap: 12px;
 }
 
+.p5-demo-card {
+  align-items: start;
+}
+
+.p5-canvas-root {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.p5-canvas-root canvas {
+  display: block;
+  width: 100% !important;
+  max-width: 640px;
+  height: auto !important;
+}
+
 .hero-panel {
   max-width: 720px;
   padding: 32px;
