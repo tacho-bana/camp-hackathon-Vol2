@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.config import settings
 from app.db.engine import AsyncSessionLocal
+from app.routers import auth
 
 app = FastAPI(
     title="Game API",
@@ -17,7 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# app.include_router(auth.router)
+app.include_router(auth.router)
 # app.include_router(game.router)
 # app.include_router(structures.router)
 # app.include_router(enemies.router)
