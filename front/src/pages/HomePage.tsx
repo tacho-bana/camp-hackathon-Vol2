@@ -1,36 +1,35 @@
 import { navigateTo } from "../routing/navigation";
-import { P5SampleCanvas } from "../components/P5SampleCanvas";
 
 const loopCards = [
   {
-    title: "Outing phase",
+    title: "外出フェーズ",
     description:
-      "Walk in the city, check in to nearby POIs, and transform real places into structures.",
-    cta: "Open map",
+      "街を歩いて近くのPOIにチェックインし、実在の場所を防衛施設に変換します。",
+    cta: "マップを開く",
     target: "/map",
   },
   {
-    title: "Defense phase",
+    title: "防衛フェーズ",
     description:
-      "At fixed ticks, enemies route toward your home area and structures auto-engage.",
-    cta: "Open battle",
+      "一定間隔のティックで敵が自宅エリアへ進軍し、施設が自動で迎撃します。",
+    cta: "バトルを開く",
     target: "/battle",
   },
   {
-    title: "Results and reward",
+    title: "結果と報酬",
     description:
-      "Review last defense report, then claim XP and supply items to prepare the next outing.",
-    cta: "Open report",
+      "防衛レポートを確認し、XPと補給アイテムを受け取って次の外出に備えます。",
+    cta: "レポートを開く",
     target: "/report",
   },
 ] as const;
 
 const roadmap = [
-  "Phase 1: Hello map, login, and home area setup",
-  "Phase 2: POI fetch, check-in, and structure conversion",
-  "Phase 3: Enemy waves, tick movement, and server battle resolution",
-  "Phase 4: Night report, rewards, and structure expiration",
-  "Phase 5: A* pathing, bosses, and PWA polish",
+  "フェーズ1: マップ表示、ログイン、拠点エリア設定",
+  "フェーズ2: POI取得、チェックイン、施設変換",
+  "フェーズ3: 敵ウェーブ、ティック移動、サーバー側戦闘解決",
+  "フェーズ4: 夜間レポート、報酬、施設期限切れ",
+  "フェーズ5: A*経路探索、ボス戦、PWA仕上げ",
 ];
 
 export function HomePage() {
@@ -38,12 +37,12 @@ export function HomePage() {
     <section className="content-panel stack-layout">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Mission Board</p>
-          <h2>Solo tower defense walker</h2>
+          <p className="eyebrow">ミッションボード</p>
+          <h2>単独タワーディフェンス・ウォーカー</h2>
         </div>
         <p className="muted">
-          Frontend MVP focuses on one-player core loop without PvP or co-op
-          features.
+          フロントエンドMVPは、PvPや協力プレイを除いた
+          1人用のコアループに集中しています。
         </p>
       </div>
 
@@ -64,20 +63,12 @@ export function HomePage() {
       </div>
 
       <article className="feature-card roadmap-card">
-        <strong>Development roadmap</strong>
+        <strong>開発ロードマップ</strong>
         <div className="roadmap-list">
           {roadmap.map((item) => (
             <span key={item}>{item}</span>
           ))}
         </div>
-      </article>
-
-      <article className="feature-card p5-demo-card">
-        <div>
-          <strong>p5.js playground</strong>
-          <span>Interactive sketch rendered via React component lifecycle.</span>
-        </div>
-        <P5SampleCanvas />
       </article>
 
       <div className="grid-cards">
@@ -86,32 +77,32 @@ export function HomePage() {
           className="feature-card quick-link"
           onClick={() => navigateTo("/base")}
         >
-          <strong>Home base status</strong>
-          <span>privacy-safe home area and durability overview</span>
+          <strong>拠点ステータス</strong>
+          <span>プライバシー配慮済みの拠点エリアと耐久度を確認</span>
         </button>
         <button
           type="button"
           className="feature-card quick-link"
           onClick={() => navigateTo("/inventory")}
         >
-          <strong>Inventory prep</strong>
-          <span>review support items before next outing</span>
+          <strong>持ち物準備</strong>
+          <span>次の外出前に支援アイテムを見直す</span>
         </button>
         <button
           type="button"
           className="feature-card quick-link"
           onClick={() => navigateTo("/map")}
         >
-          <strong>Launch field mode</strong>
-          <span>simulate movement and convert nearby POIs</span>
+          <strong>フィールドモード開始</strong>
+          <span>移動をシミュレートして周辺POIを変換</span>
         </button>
         <button
           type="button"
           className="feature-card quick-link"
           onClick={() => navigateTo("/battle")}
         >
-          <strong>Run defense ticks</strong>
-          <span>resolve nightly enemy pressure on home area</span>
+          <strong>防衛ティック実行</strong>
+          <span>夜間の敵圧力に対する拠点防衛を解決</span>
         </button>
       </div>
     </section>

@@ -34,7 +34,7 @@ export function AppRouter() {
 
   useEffect(() => {
     if (authStatus === "authenticated" && path === "/login") {
-      navigateTo("/home");
+      navigateTo("/map");
     }
 
     if (authStatus === "anonymous" && path !== "/login") {

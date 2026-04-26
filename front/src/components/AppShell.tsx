@@ -4,13 +4,24 @@ import type { RoutePath } from "../types/game";
 import type { ReactNode } from "react";
 
 const menuItems: Array<{ path: RoutePath; label: string }> = [
-  { path: "/home", label: "Home" },
-  { path: "/map", label: "Map" },
-  { path: "/base", label: "Base" },
-  { path: "/battle", label: "Battle" },
-  { path: "/inventory", label: "Inventory" },
-  { path: "/report", label: "Report" },
+  { path: "/home", label: "ホーム" },
+  { path: "/map", label: "マップ" },
+  { path: "/base", label: "拠点" },
+  { path: "/battle", label: "バトル" },
+  { path: "/inventory", label: "持ち物" },
+  { path: "/report", label: "レポート" },
 ];
+
+const roleLabel: Record<string, string> = {
+  captain: "隊長",
+  scout: "偵察",
+  engineer: "工兵",
+};
+
+const phaseLabel: Record<string, string> = {
+  outing: "外出",
+  defense: "防衛",
+};
 
 export function AppShell({
   activePath,
@@ -26,40 +37,44 @@ export function AppShell({
     <div className="app-shell">
       <aside className="side-rail">
         <div className="brand-block">
-          <p className="eyebrow">Solo Defense Ops</p>
-          <h1>Urban Loop Console</h1>
+          <p className="eyebrow">単独防衛作戦</p>
+          <h1>アーバンループ司令コンソール</h1>
           <p className="muted">
-            Walk outside to deploy structures, then defend your home area during
-            auto battle ticks.
+            外を歩いて施設を展開し、オートバトルの進行に合わせて
+            自宅エリアを防衛します。
           </p>
         </div>
 
         <section className="summary-card">
-          <span className="summary-label">Current User</span>
-          <strong>{currentUser?.name ?? "Guest"}</strong>
+          <span className="summary-label">現在のユーザー</span>
+          <strong>{currentUser?.name ?? "ゲスト"}</strong>
           <span className="summary-meta">
-            {currentUser?.role ?? "anonymous"}
+            {currentUser
+              ? `${roleLabel[currentUser.role]} / Lv.${currentUser.level}`
+              : "未認証"}
           </span>
         </section>
 
         <section className="summary-card">
-          <span className="summary-label">Home Area</span>
+          <span className="summary-label">拠点エリア</span>
           <strong>{currentBaseSummary.name}</strong>
           <span className="summary-meta">
-            {currentBaseSummary.homeArea} / Energy {currentBaseSummary.energy}
+            {currentBaseSummary.homeArea} / エネルギー{" "}
+            {currentBaseSummary.energy}
           </span>
         </section>
 
         <section className="summary-card">
-          <span className="summary-label">Wave</span>
+          <span className="summary-label">ウェーブ</span>
           <strong>{activeWaveSummary.title}</strong>
           <span className="summary-meta">
-            Threat {activeWaveSummary.threat} / Enemies{" "}
-            {activeWaveSummary.remainingEnemies} / {activeWaveSummary.phase}
+            脅威 {activeWaveSummary.threat} / 残敵{" "}
+            {activeWaveSummary.remainingEnemies} /{" "}
+            {phaseLabel[activeWaveSummary.phase]}
           </span>
         </section>
 
-        <nav className="menu-list" aria-label="Primary">
+        <nav className="menu-list" aria-label="メインメニュー">
           {menuItems.map((item) => (
             <button
               key={item.path}
@@ -75,7 +90,7 @@ export function AppShell({
         </nav>
 
         <button type="button" className="ghost-button" onClick={signOut}>
-          Sign out
+          ログアウト
         </button>
       </aside>
 

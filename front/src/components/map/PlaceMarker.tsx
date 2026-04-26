@@ -1,12 +1,12 @@
 import type { NearbyPlace } from "../../types/game";
 
 const kindLabel: Record<NearbyPlace["kind"], string> = {
-  "electronics-shop": "Electronics Shop",
-  "convenience-store": "Convenience Store",
-  cafe: "Cafe",
-  park: "Park",
-  station: "Station",
-  avenue: "Avenue",
+  "electronics-shop": "家電店",
+  "convenience-store": "コンビニ",
+  cafe: "カフェ",
+  park: "公園",
+  station: "駅",
+  avenue: "大通り",
 };
 
 export function PlaceMarker({
@@ -32,7 +32,7 @@ export function PlaceMarker({
       <span>
         {kindLabel[place.kind]} / {place.distance}m
       </span>
-      {deployed ? <span className="marker-status">converted</span> : null}
+      {deployed ? <span className="marker-status">変換済み</span> : null}
     </button>
   );
 }

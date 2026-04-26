@@ -21,11 +21,11 @@ export function RewardModal({
       aria-labelledby="reward-title"
     >
       <div className="reward-card">
-        <p className="eyebrow">Reward</p>
+        <p className="eyebrow">報酬</p>
         <h2 id="reward-title">{title}</h2>
         <p>{description}</p>
         <button type="button" className="ghost-button" onClick={onClose}>
-          Close
+          閉じる
         </button>
       </div>
     </div>

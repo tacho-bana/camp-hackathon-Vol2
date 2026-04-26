@@ -1,32 +1,73 @@
+import { useAppState } from "../state/AppStateContext";
+import { navigateTo } from "../routing/navigation";
+
 export function ReportPage() {
+  const { gamePhase, homeHp, resetGame } = useAppState();
+
+  const handlePlayAgain = () => {
+    resetGame();
+    navigateTo("/map");
+  };
+
+  if (gamePhase !== "result") {
+    return (
+      <section className="content-panel stack-layout">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">結果画面</p>
+            <h2>ゲームがまだ終了していません</h2>
+            <p className="muted">バトルフェーズが終了するとここに結果が表示されます。</p>
+          </div>
+        </div>
+        <article className="feature-card">
+          <strong>ゲームはまだ進行中です</strong>
+          <span>地図画面でゲームを進めてください。</span>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => navigateTo("/map")}
+          >
+            地図画面へ
+          </button>
+        </article>
+      </section>
+    );
+  }
+
+  const isVictory = homeHp > 0;
+
   return (
     <section className="content-panel stack-layout">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Night Report</p>
-          <h2>Last defense summary</h2>
+          <p className="eyebrow">ゲーム結果</p>
+          <h2>{isVictory ? "防衛成功！" : "防衛失敗..."}</h2>
+          <p className="muted">
+            {isVictory
+              ? "ウイルスの侵入を防ぎました！"
+              : "ルーターがウイルスに侵入されてしまいました..."}
+          </p>
         </div>
       </div>
 
       <article className="feature-card report-card">
-        <strong>Wave outcome: defended</strong>
+        <strong>{isVictory ? "防衛成功！" : "防衛失敗..."}</strong>
         <span>
-          Enemy wave 021 reached outer ring but failed to break the home core.
+          {isVictory
+            ? "家のルーターへのウイルス侵入を防ぎました。おめでとうございます！"
+            : "残念ながら家のHPが0になりました。次は頑張りましょう！"}
         </span>
-        <span>
-          Primary contribution: electric shop tower stun and cafe heal node.
-        </span>
+        <span className="muted">家HP: {homeHp} / 100</span>
       </article>
 
-      <div className="grid-cards two-up">
-        <article className="feature-card stat-card">
-          <strong>+120 XP</strong>
-          <span>reward granted</span>
-        </article>
-        <article className="feature-card stat-card">
-          <strong>2 structures expired</strong>
-          <span>go outside to rebuild coverage</span>
-        </article>
+      <div className="auth-actions">
+        <button
+          type="button"
+          className="primary-button"
+          onClick={handlePlayAgain}
+        >
+          もう一度遊ぶ
+        </button>
       </div>
     </section>
   );

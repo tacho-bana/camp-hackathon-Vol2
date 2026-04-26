@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { BattleFeed } from "../components/battle/BattleFeed";
-import { EnemyCanvas } from "../components/battle/EnemyCanvas";
 import { RewardModal } from "../components/battle/RewardModal";
 import { useAppState } from "../state/AppStateContext";
 import type { BattleEntry } from "../types/game";
@@ -18,22 +17,22 @@ export function BattlePage() {
       {
         id: "1",
         time: "20:12",
-        actor: "Scanner",
-        message: "enemy wave detected on avenue ingress",
+        actor: "スキャナー",
+        message: "アベニュー侵入路で敵ウェーブを検知",
         tone: "warning",
       },
       {
         id: "2",
         time: "20:14",
-        actor: "EMP Tower",
-        message: "front runners slowed with short stun",
+        actor: "EMPタワー",
+        message: "先頭集団に短時間スタンを付与",
         tone: "info",
       },
       {
         id: "3",
         time: "20:18",
-        actor: "Home Beacon",
-        message: "base sustained and rerouted remaining units",
+        actor: "ホームビーコン",
+        message: "拠点は持ちこたえ、残敵を外周へ誘導",
         tone: "success",
       },
     ],
@@ -67,11 +66,10 @@ export function BattlePage() {
     <section className="content-panel stack-layout">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Defense Phase</p>
-          <h2>Tick-driven auto defense</h2>
+          <p className="eyebrow">防衛フェーズ</p>
+          <h2>ティック駆動オート防衛</h2>
           <p className="muted">
-            Frontend simulation of enemy advance toward home base for API
-            integration.
+            API連携を想定した、敵の拠点進軍シミュレーションです。
           </p>
         </div>
         <div className="inline-controls">
@@ -80,15 +78,15 @@ export function BattlePage() {
             className="ghost-button"
             onClick={() => setPage((value) => Math.max(1, value - 1))}
           >
-            Prev
+            前へ
           </button>
-          <span className="page-pill">page {page}</span>
+          <span className="page-pill">ページ {page}</span>
           <button
             type="button"
             className="ghost-button"
             onClick={() => setPage((value) => value + 1)}
           >
-            Next
+            次へ
           </button>
         </div>
       </div>
@@ -96,19 +94,13 @@ export function BattlePage() {
       <div className="grid-cards two-up">
         <article className="feature-card stat-card">
           <strong>{localEnemyCount}</strong>
-          <span>enemies remaining</span>
+          <span>残敵数</span>
         </article>
         <article className="feature-card stat-card">
           <strong>{tickCount}</strong>
-          <span>ticks executed</span>
+          <span>実行ティック数</span>
         </article>
       </div>
-
-      <article className="feature-card">
-        <p className="eyebrow">Enemy Preview</p>
-        <h3>p5 enemy render template</h3>
-        <EnemyCanvas />
-      </article>
 
       <BattleFeed entries={entries} />
 
@@ -117,7 +109,7 @@ export function BattlePage() {
         className="primary-button align-left"
         onClick={handleRunTick}
       >
-        Run defense tick
+        防衛ティックを実行
       </button>
 
       <button
@@ -125,13 +117,13 @@ export function BattlePage() {
         className="ghost-button align-left"
         onClick={() => setShowReward(true)}
       >
-        Open reward preview
+        報酬プレビューを開く
       </button>
 
       <RewardModal
         open={showReward}
-        title="Night defense rewards"
-        description="+120 XP, +1 Pulse Cell, and +1 Repair Kit from successful auto defense."
+        title="夜間防衛の報酬"
+        description="オート防衛成功: +120 XP、パルスセル +1、修理キット +1"
         onClose={() => setShowReward(false)}
       />
     </section>

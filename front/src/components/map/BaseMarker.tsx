@@ -10,7 +10,7 @@ export function BaseMarker({
       className={active ? "marker marker-base active" : "marker marker-base"}
     >
       <strong>{label}</strong>
-      <span>BaseMarker</span>
+      <span>拠点マーカー</span>
     </div>
   );
 }
