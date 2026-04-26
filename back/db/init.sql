@@ -15,6 +15,25 @@ CREATE TABLE IF NOT EXISTS users (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- セッション
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id  TEXT PRIMARY KEY,
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    csrf_token  TEXT NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE sessions
+    ADD COLUMN IF NOT EXISTS csrf_token TEXT;
+
+UPDATE sessions
+SET csrf_token = md5(random()::text || clock_timestamp()::text)
+WHERE csrf_token IS NULL;
+
+ALTER TABLE sessions
+    ALTER COLUMN csrf_token SET NOT NULL;
+
 -- 拠点
 CREATE TABLE IF NOT EXISTS bases (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

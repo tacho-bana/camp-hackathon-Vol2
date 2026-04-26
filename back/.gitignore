@@ -9,6 +9,15 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
 # Docker ボリューム等
 postgres_data/
+
+# テスト・ツール系
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ローカル確認用
+cookies.txt

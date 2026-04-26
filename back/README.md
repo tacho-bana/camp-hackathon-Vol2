@@ -12,10 +12,47 @@ pip install -r requirements.txt
 cp .env.example .env
 # .env を編集して DATABASE_URL などを設定
 
+# DBにテーブルを作成
+# Supabase SQL editor などで db/init.sql を実行
+
 python run.py
 ```
 
 起動後、http://localhost:8001/docs でSwagger UIを確認できる。
+
+## 認証方式
+
+- 認証は `HttpOnly cookie + server-side session` 方式
+- cookie の値は JWT ではなくランダムな `session_id`
+- セッション本体は `sessions` テーブルに保存
+- CSRF 対策として `csrf_token` cookie も発行し、状態変更系リクエストでは `X-CSRF-Token` ヘッダー検証を行う
+- `logout` 時は cookie を削除し、DB 上の session も削除する
+- 期限切れ session は API 起動中に定期削除される
+
+フロントから認証付きで叩く場合は `fetch` / `axios` 側で cookie を送る必要がある。
+
+```ts
+fetch("http://localhost:8001/auth/me", {
+  credentials: "include",
+})
+```
+
+状態変更系リクエストでは CSRF token を header に付ける。
+
+```ts
+fetch("http://localhost:8001/auth/logout", {
+  method: "POST",
+  credentials: "include",
+  headers: {
+    "X-CSRF-Token": csrfToken,
+  },
+})
+```
+
+別オリジン構成で運用する場合は、cookie 設定と CORS 設定を合わせること。
+
+- 同一サイト寄りの構成: `AUTH_COOKIE_SAMESITE=lax`
+- 完全な別ドメイン構成: `AUTH_COOKIE_SAMESITE=none` と `AUTH_COOKIE_SECURE=true`
 
 ---
 
@@ -25,10 +62,10 @@ python run.py
 
 | メソッド | パス | 説明 |
 |---|---|---|
-| POST | `/auth/register` | 新規登録。email・password・name を受け取りJWTを返す |
-| POST | `/auth/login` | ログイン。email・password を受け取りJWTを返す |
+| POST | `/auth/register` | 新規登録。email・password・name を受け取り、session cookie を発行する |
+| POST | `/auth/login` | ログイン。email・password を受け取り、session cookie を発行する |
 | GET | `/auth/me` | ログイン中ユーザの情報を返す（name・level・xp など） |
-| POST | `/auth/logout` | ログアウト（クライアント側でトークンを破棄） |
+| POST | `/auth/logout` | ログアウト。session cookie を削除し、DB 上の session も削除する |
 
 ### ゲーム `/game`
 
@@ -64,3 +101,59 @@ python run.py
 ## テーブル構成
 
 `back/db/init.sql` を参照。
+
+- `users`
+- `sessions`
+- `bases`
+- `structures`
+- `enemy_waves`
+- `enemies`
+- `movement_logs`
+- `action_logs`
+- `battle_logs`
+
+## 動作確認
+
+cookie を保存しながら確認する。
+
+### register
+
+```bash
+curl -i -X POST http://localhost:8001/auth/register \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"email":"test@example.com","password":"password123","name":"test-user"}'
+```
+
+### login
+
+```bash
+curl -i -X POST http://localhost:8001/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+
+### me
+
+```bash
+curl -i http://localhost:8001/auth/me \
+  -b cookies.txt
+```
+
+### logout
+
+まず cookie jar から `csrf_token` を取り出す。
+
+```bash
+csrf_token=$(awk '$6 == "csrf_token" {print $7}' cookies.txt)
+```
+
+そのうえで header を付けて logout する。
+
+```bash
+curl -i -X POST http://localhost:8001/auth/logout \
+  -b cookies.txt \
+  -c cookies.txt \
+  -H "X-CSRF-Token: ${csrf_token}"
+```
