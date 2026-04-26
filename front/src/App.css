@@ -1,0 +1,493 @@
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+
+.side-rail {
+  padding: 32px 24px;
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(3, 8, 20, 0.55);
+  backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brand-block h1,
+.panel-header h2,
+.hero-panel h1 {
+  margin: 0;
+  letter-spacing: -0.04em;
+}
+
+.brand-block h1,
+.hero-panel h1 {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-size: 0.72rem;
+  color: #7dd3fc;
+}
+
+.muted,
+.lead {
+  color: #9aa9bc;
+}
+
+.summary-card,
+.feature-card,
+.hero-panel,
+.reward-card,
+.battle-entry,
+.map-canvas,
+.battle-feed {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+}
+
+.summary-card,
+.feature-card,
+.reward-card,
+.battle-entry {
+  border-radius: 18px;
+}
+
+.summary-card,
+.feature-card {
+  padding: 16px;
+}
+
+.summary-card {
+  display: grid;
+  gap: 4px;
+}
+
+.summary-label,
+.summary-meta,
+.feature-card span,
+.page-pill {
+  color: #9aa9bc;
+  font-size: 0.92rem;
+}
+
+.menu-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.menu-item,
+.ghost-button,
+.primary-button,
+.action-pill {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 16px;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.menu-item {
+  text-align: left;
+  color: #d7e0ea;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.menu-item.active,
+.primary-button,
+.action-pill.primary {
+  background: linear-gradient(135deg, #38bdf8, #22c55e);
+  color: #07111b;
+}
+
+.menu-item:hover,
+.ghost-button:hover,
+.primary-button:hover,
+.action-pill:hover {
+  transform: translateY(-1px);
+}
+
+.ghost-button {
+  color: #d7e0ea;
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.page-frame {
+  padding: 32px;
+}
+
+.content-panel,
+.auth-screen {
+  min-height: calc(100vh - 64px);
+}
+
+.auth-layout {
+  place-items: center;
+}
+
+.auth-panel {
+  width: min(760px, 100%);
+}
+
+.auth-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+  color: #d7e0ea;
+}
+
+.auth-field span {
+  font-size: 0.92rem;
+  color: #9aa9bc;
+}
+
+.auth-field input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(2, 6, 23, 0.6);
+  color: #d7e0ea;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.auth-note {
+  margin: 0;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.choice-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.choice-chip {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(2, 6, 23, 0.5);
+  color: #d7e0ea;
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.choice-chip small {
+  color: #9aa9bc;
+}
+
+.choice-chip.active {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.2);
+}
+
+.map-screen {
+  position: relative;
+}
+
+.map-briefing {
+  gap: 6px;
+}
+
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.65);
+  z-index: 40;
+}
+
+.settings-card {
+  width: min(520px, 100%);
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.35);
+  display: grid;
+  gap: 16px;
+}
+
+.panel-header.compact {
+  align-items: start;
+}
+
+.content-panel,
+.auth-screen {
+  display: grid;
+  gap: 20px;
+}
+
+.panel-header,
+.inline-controls,
+.bottom-action-panel,
+.grid-cards {
+  display: flex;
+  gap: 12px;
+}
+
+.panel-header {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.grid-cards {
+  flex-wrap: wrap;
+}
+
+.grid-cards.two-up > * {
+  flex: 1 1 260px;
+}
+
+.quick-link {
+  text-align: left;
+}
+
+.roadmap-card {
+  gap: 14px;
+}
+
+.roadmap-list {
+  display: grid;
+  gap: 8px;
+}
+
+.roadmap-list span {
+  padding-left: 12px;
+  border-left: 2px solid rgba(125, 211, 252, 0.4);
+}
+
+.feature-card,
+.hero-panel,
+.map-canvas,
+.battle-feed,
+.reward-card {
+  display: grid;
+  gap: 12px;
+}
+
+.hero-panel {
+  max-width: 720px;
+  padding: 32px;
+  border-radius: 28px;
+}
+
+.stack-layout {
+  align-content: start;
+}
+
+.primary-button {
+  justify-self: start;
+}
+
+.align-left {
+  justify-self: start;
+}
+
+.map-view {
+  display: grid;
+}
+
+.map-canvas {
+  height: calc(100dvh - 200px);
+  min-height: 480px;
+  padding: 20px;
+  border-radius: 28px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(56, 189, 248, 0.16),
+      transparent 25%
+    ),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.9));
+}
+
+.mapbox-container {
+  position: absolute;
+  inset: 0;
+}
+
+.map-overlay {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  color: #9aa9bc;
+  font-size: 0.9rem;
+}
+
+.map-overlay-top {
+  pointer-events: none;
+}
+
+.map-layer-stack {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.map-place-list {
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.marker,
+.layer,
+.placement-preview {
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.marker {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(2, 6, 23, 0.6);
+  color: #d7e0ea;
+  text-align: left;
+}
+
+.marker.active {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.2);
+}
+
+.marker-status {
+  color: #86efac;
+  font-size: 0.82rem;
+}
+
+.layer {
+  position: absolute;
+  right: 20px;
+  width: 240px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.layer-enemy {
+  top: 80px;
+}
+
+.layer-structure {
+  top: 168px;
+}
+
+.placement-preview {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.map-status-card {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  z-index: 3;
+  display: grid;
+  gap: 6px;
+  max-width: 300px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #d7e0ea;
+}
+
+.bottom-action-panel {
+  flex-wrap: wrap;
+}
+
+.action-pill {
+  background: rgba(148, 163, 184, 0.08);
+  color: #d7e0ea;
+}
+
+.battle-feed {
+  padding: 16px;
+}
+
+.battle-entry {
+  padding: 16px;
+}
+
+.battle-entry time,
+.battle-entry p {
+  color: #9aa9bc;
+}
+
+.battle-entry.success {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.battle-entry.warning {
+  border-color: rgba(250, 204, 21, 0.35);
+}
+
+.reward-modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 6, 23, 0.72);
+  padding: 24px;
+}
+
+.reward-card {
+  width: min(480px, 100%);
+  padding: 24px;
+  border-radius: 24px;
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .side-rail {
+    border-right: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  }
+
+  .page-frame {
+    padding: 20px;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .auth-panel {
+    width: 100%;
+  }
+}
