@@ -56,13 +56,10 @@ export function LoginPage() {
         <div className="auth-actions">
           <button
             type="button"
-            className="primary-button"
+            className="primary-button floating-action"
             onClick={handleSignIn}
           >
-            新規登録
-          </button>
-          <button type="button" className="ghost-button" onClick={handleSignIn}>
-            ログイン
+            新規登録 / ログイン
           </button>
         </div>
 

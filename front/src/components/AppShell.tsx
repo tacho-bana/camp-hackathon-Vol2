@@ -1,7 +1,7 @@
+import { useEffect, useState, type ReactNode } from "react";
 import { navigateTo } from "../routing/navigation";
 import { useAppState } from "../state/AppStateContext";
 import type { RoutePath } from "../types/game";
-import type { ReactNode } from "react";
 
 const menuItems: Array<{ path: RoutePath; label: string }> = [
   { path: "/home", label: "ホーム" },
@@ -32,10 +32,35 @@ export function AppShell({
 }) {
   const { currentUser, currentBaseSummary, activeWaveSummary, signOut } =
     useAppState();
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // ルート遷移時にドロワーを閉じる
+  useEffect(() => {
+    setIsDrawerOpen(false);
+  }, [activePath]);
 
   return (
     <div className="app-shell">
-      <aside className="side-rail">
+      <header className="mobile-topbar">
+        <button
+          type="button"
+          className="ghost-button"
+          aria-label="メニュー"
+          onClick={() => setIsDrawerOpen(true)}
+        >
+          ≡
+        </button>
+        <strong>ARMA</strong>
+      </header>
+
+      {isDrawerOpen && (
+        <div
+          className="drawer-scrim"
+          onClick={() => setIsDrawerOpen(false)}
+        />
+      )}
+
+      <aside className={isDrawerOpen ? "side-rail open" : "side-rail"}>
         <div className="brand-block">
           <p className="eyebrow">単独防衛作戦</p>
           <h1>アーバンループ司令コンソール</h1>

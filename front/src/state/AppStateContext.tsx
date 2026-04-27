@@ -33,12 +33,14 @@ type AppStateValue = {
 
   // --- ゲーム状態 ---
   gamePhase: GamePhase;
+  difficulty: 1 | 2 | 3;
   bitcoin: number;
   homeCoords: LatLng | null;
   homeHp: number;
   structures: Structure[];
   enemies: Enemy[];
   setGamePhase: (phase: GamePhase) => void;
+  setDifficulty: (level: 1 | 2 | 3) => void;
   addBitcoin: (amount: number) => void;
   spendBitcoin: (amount: number) => void;
   setHomeCoords: (coords: LatLng | null) => void;
@@ -89,6 +91,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   // ゲーム状態
   const [gamePhase, setGamePhaseState] = useState<GamePhase>("waiting");
+  const [difficulty, setDifficultyState] = useState<1 | 2 | 3>(2);
   const [bitcoin, setBitcoin] = useState<number>(300);
   const [homeCoords, setHomeCoordsState] = useState<LatLng | null>(null);
   const [homeHp, setHomeHpState] = useState<number>(100);
@@ -130,12 +133,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
       // ゲーム状態
       gamePhase,
+      difficulty,
       bitcoin,
       homeCoords,
       homeHp,
       structures,
       enemies,
       setGamePhase: (phase) => setGamePhaseState(phase),
+      setDifficulty: (level) => setDifficultyState(level),
       addBitcoin: (amount) => setBitcoin((prev) => prev + amount),
       spendBitcoin: (amount) =>
         setBitcoin((prev) => {
@@ -157,6 +162,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         }),
       resetGame: () => {
         setGamePhaseState("waiting");
+        setDifficultyState(2);
         setBitcoin(300);
         setHomeCoordsState(null);
         setHomeHpState(100);
