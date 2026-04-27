@@ -12,6 +12,7 @@ import type {
 } from "../../types/game";
 import { BaseMarker } from "./BaseMarker";
 import { EnemyLayer } from "./EnemyLayer";
+import { EnemySprite } from "./EnemySprite";
 import { PlaceMarker } from "./PlaceMarker";
 import { StructureLayer } from "./StructureLayer";
 
@@ -20,6 +21,13 @@ const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 const initialCenter = {
   lng: 139.7671,
   lat: 35.6812,
+};
+
+type EnemyOverlayItem = {
+  id: string;
+  enemy: Enemy;
+  x: number;
+  y: number;
 };
 
 export function MapView({
@@ -67,8 +75,10 @@ export function MapView({
   const homeMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const nearbyPlaceMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const structureMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
-  const enemyMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const hasAutocenteredRef = useRef(false);
+  const [enemyOverlayItems, setEnemyOverlayItems] = useState<EnemyOverlayItem[]>(
+    [],
+  );
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
@@ -270,53 +280,65 @@ export function MapView({
     }
   }, [structures, mapStatus]);
 
-  // 敵マーカーの差分管理
   useEffect(() => {
+    const aliveEnemies = enemies.filter((enemy) => enemy.state !== "dead");
+
     if (!mapRef.current || mapStatus !== "ready") {
+      setEnemyOverlayItems(
+        aliveEnemies.map((enemy, index) => ({
+          id: enemy.id,
+          enemy,
+          x: 120 + (index % 3) * 92,
+          y: 160 + Math.floor(index / 3) * 96,
+        })),
+      );
       return;
     }
 
-    const currentIds = new Set(enemies.map((e) => e.id));
-    // 削除
-    for (const [id, marker] of enemyMarkersRef.current.entries()) {
-      if (!currentIds.has(id)) {
-        marker.remove();
-        enemyMarkersRef.current.delete(id);
-      }
-    }
-    // 追加・更新
-    for (const enemy of enemies) {
-      if (enemy.state === "dead") {
-        if (enemyMarkersRef.current.has(enemy.id)) {
-          enemyMarkersRef.current.get(enemy.id)!.remove();
-          enemyMarkersRef.current.delete(enemy.id);
-        }
-        continue;
-      }
-      if (!enemyMarkersRef.current.has(enemy.id)) {
-        const marker = new mapboxgl.Marker({ color: "#ef4444" })
-          .setLngLat([enemy.lng, enemy.lat])
-          .setPopup((() => {
-            const el = document.createElement("div");
-            const strong = document.createElement("strong");
-            strong.textContent = "敵";
-            el.append(strong, document.createElement("br"), `HP: ${enemy.hp}/${enemy.maxHp}`);
-            return new mapboxgl.Popup({ offset: 20 }).setDOMContent(el);
-          })())
-          .addTo(mapRef.current!);
-        enemyMarkersRef.current.set(enemy.id, marker);
-      } else {
-        enemyMarkersRef.current
-          .get(enemy.id)!
-          .setLngLat([enemy.lng, enemy.lat]);
-      }
-    }
+    const map = mapRef.current;
+
+    const updateOverlayPositions = () => {
+      setEnemyOverlayItems(
+        aliveEnemies.map((enemy) => {
+          const point = map.project([enemy.lng, enemy.lat]);
+          return {
+            id: enemy.id,
+            enemy,
+            x: point.x,
+            y: point.y,
+          };
+        }),
+      );
+    };
+
+    updateOverlayPositions();
+    map.on("move", updateOverlayPositions);
+    map.on("zoom", updateOverlayPositions);
+    map.on("resize", updateOverlayPositions);
+
+    return () => {
+      map.off("move", updateOverlayPositions);
+      map.off("zoom", updateOverlayPositions);
+      map.off("resize", updateOverlayPositions);
+    };
   }, [enemies, mapStatus]);
 
   return (
     <section className="map-view">
       <div className="map-canvas">
         <div ref={mapContainerRef} className="mapbox-container" />
+
+        <div className="enemy-overlay-layer" aria-hidden="true">
+          {enemyOverlayItems.map((item) => (
+            <div
+              key={item.id}
+              className="enemy-overlay-item"
+              style={{ left: item.x - 32, top: item.y - 70 }}
+            >
+              <EnemySprite enemy={item.enemy} />
+            </div>
+          ))}
+        </div>
 
         <div className="map-overlay map-overlay-top">
           <span>
