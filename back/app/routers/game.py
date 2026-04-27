@@ -124,18 +124,19 @@ async def start_game(
     )
 
     try:
-        async with db.begin():
-            db.add(wave)
-            await db.flush()
+        db.add(wave)
+        await db.flush()
 
-            for spec in enemy_specs:
-                enemy = Enemy(
-                    user_id=current_user.id,
-                    wave_id=wave.id,
-                    target_base_id=base.id,
-                    **spec,
-                )
-                db.add(enemy)
+        for spec in enemy_specs:
+            enemy = Enemy(
+                user_id=current_user.id,
+                wave_id=wave.id,
+                target_base_id=base.id,
+                **spec,
+            )
+            db.add(enemy)
+
+        await db.commit()
     except IntegrityError as exc:
         await db.rollback()
         raise HTTPException(
