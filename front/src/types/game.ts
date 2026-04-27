@@ -13,7 +13,7 @@ export type LatLng = {
 // ゲームフェーズ
 // -------------------------------------------------------
 
-export type GamePhase = "waiting" | "prep" | "battle" | "result";
+export type GamePhase = "waiting" | "difficulty" | "prep" | "battle" | "result";
 
 // -------------------------------------------------------
 // フロントエンド用ゲームエンティティ

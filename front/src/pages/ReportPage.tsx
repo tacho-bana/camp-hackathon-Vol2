@@ -60,10 +60,10 @@ export function ReportPage() {
         <span className="muted">家HP: {homeHp} / 100</span>
       </article>
 
-      <div className="auth-actions">
+      <div className="action-group">
         <button
           type="button"
-          className="primary-button"
+          className="primary-button floating-action"
           onClick={handlePlayAgain}
         >
           もう一度遊ぶ

@@ -5,7 +5,7 @@ export async function postGameBase(lat: number, lng: number): Promise<GameStateR
   return post<GameStateResponse>("/game/base", { lat, lng });
 }
 
-export async function postGameStart(difficulty: number): Promise<GameStateResponse> {
+export async function postGameStart(difficulty: 1 | 2 | 3): Promise<GameStateResponse> {
   return post<GameStateResponse>("/game/start", { difficulty });
 }
 

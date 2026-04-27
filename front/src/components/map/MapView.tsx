@@ -3,6 +3,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type {
   Enemy,
+  GamePhase,
   LatLng,
   MapViewport,
   NearbyPlace,
@@ -34,6 +35,12 @@ export function MapView({
   structures,
   enemies,
   homeCoords,
+  gamePhase,
+  bitcoin,
+  homeHp,
+  prepRemaining,
+  battleRemaining,
+  currentPositionLabel,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -47,6 +54,12 @@ export function MapView({
   structures: Structure[];
   enemies: Enemy[];
   homeCoords: LatLng | null;
+  gamePhase: GamePhase;
+  bitcoin: number;
+  homeHp: number;
+  prepRemaining: number;
+  battleRemaining: number;
+  currentPositionLabel: string;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -350,7 +363,19 @@ export function MapView({
                   : "Mapbox を初期化しています。"}
             </span>
           </div>
-        ) : null}
+        ) : (
+          <div className="map-status-card">
+            <strong>
+              {gamePhase === "waiting" && "待機中"}
+              {gamePhase === "difficulty" && "難易度選択"}
+              {gamePhase === "prep" && `準備中 ${Math.floor(prepRemaining / 60)}:${String(prepRemaining % 60).padStart(2, "0")}`}
+              {gamePhase === "battle" && `バトル中 ${Math.floor(battleRemaining / 60)}:${String(battleRemaining % 60).padStart(2, "0")}`}
+              {gamePhase === "result" && "ゲーム終了"}
+            </strong>
+            <span>BTC {bitcoin} / HP {homeHp}/100</span>
+            <span style={{ fontSize: "0.78rem", color: "#7dd3fc" }}>{currentPositionLabel}</span>
+          </div>
+        )}
       </div>
     </section>
   );
