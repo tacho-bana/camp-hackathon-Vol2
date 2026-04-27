@@ -157,3 +157,23 @@ curl -i -X POST http://localhost:8001/auth/logout \
   -c cookies.txt \
   -H "X-CSRF-Token: ${csrf_token}"
 ```
+
+## Integration Test
+
+ローカル PostgreSQL を Docker で立てて、実DB integration test を回せる。
+
+```bash
+docker run --name camp-postgres-test \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_DB=camp_test \
+  -p 5433:5432 \
+  -d postgres:16
+```
+
+`TEST_DATABASE_URL` を設定する。`.env.test.example` を参考にする。
+
+```bash
+export TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/camp_test
+pytest -q tests/integration -m integration
+```

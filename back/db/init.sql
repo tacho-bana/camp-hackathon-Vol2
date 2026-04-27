@@ -81,6 +81,10 @@ CREATE TABLE IF NOT EXISTS enemy_waves (
     seed            INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_active_wave_per_user
+ON enemy_waves (user_id)
+WHERE status IN ('pending', 'active');
+
 -- 敵
 CREATE TABLE IF NOT EXISTS enemies (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
