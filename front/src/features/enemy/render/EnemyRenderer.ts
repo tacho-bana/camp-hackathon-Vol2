@@ -68,11 +68,27 @@ function drawEnemyBodyByKind(s: p5, enemy: EnemyModel): void {
       s.triangle(0, -enemyParams.radius - 6, -enemyParams.radius, -2, enemyParams.radius, -2);
       s.rectMode(s.CORNER);
       break;
-    case "worm":
-      s.ellipse(-10, 0, size * 0.65, size * 0.55);
-      s.ellipse(2, 1, size * 0.75, size * 0.6);
-      s.ellipse(14, 2, size * 0.7, size * 0.52);
+    case "worm": {
+      const t = s.millis() / 1000;
+      const seed = enemy.id.length * 0.33;
+      const speed = 3;
+      const amplitude = 4.8;
+      const phaseStep = 0.75;
+
+      const xSegments = [-16, -4, 10, 22];
+      const widths = [size * 0.62, size * 0.72, size * 0.68, size * 0.56];
+      const heights = [size * 0.5, size * 0.58, size * 0.54, size * 0.44];
+
+      for (let i = 0; i < xSegments.length; i += 1) {
+        const yWave = s.sin(t * speed + i * phaseStep + seed) * amplitude;
+        s.ellipse(xSegments[i], yWave, widths[i], heights[i]);
+      }
+
+      s.strokeWeight(3);
+      s.point(25, s.sin(t * speed + 2 * phaseStep + seed) * amplitude - 2);
+      s.point(25, s.sin(t * speed + 2 * phaseStep + seed) * amplitude + 2);
       break;
+    }
     case "circle":
     default:
       s.circle(0, 0, size);
