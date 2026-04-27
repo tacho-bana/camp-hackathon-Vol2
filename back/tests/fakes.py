@@ -7,8 +7,8 @@ from httpx import ASGITransport, AsyncClient
 
 from app.db.engine import get_db
 from app.db.models import Base_ as UserBase
-from app.db.models import Enemy, EnemyWave, User, UserSession
-from app.routers import auth, game
+from app.db.models import Enemy, EnemyWave, Structure, User, UserSession
+from app.routers import auth, game, structures
 
 
 class FakeScalarResult:
@@ -46,6 +46,7 @@ class FakeAsyncSession:
         self.sessions_by_id: dict[str, UserSession] = {}
         self.bases_by_id: dict[str, UserBase] = {}
         self.bases_by_user_id: dict[str, UserBase] = {}
+        self.structures_by_id: dict[str, Structure] = {}
         self.waves_by_id: dict[str, EnemyWave] = {}
         self.enemies_by_id: dict[str, Enemy] = {}
 
@@ -86,6 +87,16 @@ class FakeAsyncSession:
                 obj.created_at = now
             self.bases_by_id[obj.id] = obj
             self.bases_by_user_id[obj.user_id] = obj
+            return
+
+        if isinstance(obj, Structure):
+            if not obj.id:
+                obj.id = str(uuid.uuid4())
+            if obj.placed_at is None:
+                obj.placed_at = now
+            if obj.metadata_json is None:
+                obj.metadata_json = {}
+            self.structures_by_id[obj.id] = obj
             return
 
         if isinstance(obj, EnemyWave):
@@ -156,6 +167,18 @@ class FakeAsyncSession:
                 deleted_ids.append((session_id,))
             return FakeResult(rows=deleted_ids)
 
+        if statement_type == "Delete" and statement.table.name == "structures":
+            deleted_ids = []
+            to_delete = [
+                structure_id
+                for structure_id, structure in self.structures_by_id.items()
+                if self._matches(statement.whereclause, structure)
+            ]
+            for structure_id in to_delete:
+                del self.structures_by_id[structure_id]
+                deleted_ids.append((structure_id,))
+            return FakeResult(rows=deleted_ids)
+
         raise AssertionError(f"Unsupported statement: {statement!r}")
 
     def _iter_entity(self, entity):
@@ -165,6 +188,8 @@ class FakeAsyncSession:
             return self.sessions_by_id.values()
         if entity is UserBase:
             return self.bases_by_id.values()
+        if entity is Structure:
+            return self.structures_by_id.values()
         if entity is EnemyWave:
             return self.waves_by_id.values()
         if entity is Enemy:
@@ -206,6 +231,7 @@ async def app_client():
     test_app = FastAPI()
     test_app.include_router(auth.router)
     test_app.include_router(game.router)
+    test_app.include_router(structures.router)
 
     async def override_get_db():
         yield db
