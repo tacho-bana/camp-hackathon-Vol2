@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.db.engine import get_db
-from app.routers import auth, game
+from app.routers import auth, game, structures
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
@@ -84,6 +84,7 @@ async def integration_client(db_sessionmaker):
     test_app = FastAPI()
     test_app.include_router(auth.router)
     test_app.include_router(game.router)
+    test_app.include_router(structures.router)
 
     async def override_get_db():
         async with db_sessionmaker() as session:
