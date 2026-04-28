@@ -1,15 +1,19 @@
 import {
   createContext,
+  useEffect,
   useContext,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { ApiError } from "../api/client";
+import { getMe, postLogin, postLogout, postRegister } from "../api/auth";
 import type {
   BaseSummary,
   Enemy,
   GamePhase,
   LatLng,
+  LoadingAuthStatus,
   Settings,
   Structure,
   User,
@@ -18,10 +22,14 @@ import type {
 
 type AppStateValue = {
   // --- 認証（モック） ---
-  authStatus: "anonymous" | "authenticated";
+  authStatus: LoadingAuthStatus;
   currentUser: User | null;
-  signIn: () => void;
-  signOut: () => void;
+  signIn: (params: {
+    email: string;
+    password: string;
+    name: string;
+  }) => Promise<void>;
+  signOut: () => Promise<void>;
 
   // --- レガシーモック状態（既存ページが依存、段階的に移行予定） ---
   currentBaseSummary: BaseSummary;
@@ -76,12 +84,27 @@ const defaultSettings: Settings = {
   compactMap: false,
 };
 
+function mapUser(user: {
+  id: string;
+  email: string;
+  name: string | null;
+  level: number;
+  xp: number;
+}): User {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name ?? "ゲスト",
+    level: user.level,
+    xp: user.xp,
+    role: "captain",
+  };
+}
+
 const AppStateContext = createContext<AppStateValue | null>(null);
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [authStatus, setAuthStatus] = useState<"anonymous" | "authenticated">(
-    "anonymous",
-  );
+  const [authStatus, setAuthStatus] = useState<LoadingAuthStatus>("loading");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentBaseSummary, setCurrentBaseSummary] =
     useState<BaseSummary>(defaultBaseSummary);
@@ -98,21 +121,56 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [structures, setStructuresState] = useState<Structure[]>([]);
   const [enemies, setEnemiesState] = useState<Enemy[]>([]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      try {
+        const user = await getMe();
+        if (cancelled) return;
+        setCurrentUser(mapUser(user));
+        setAuthStatus("authenticated");
+      } catch {
+        if (cancelled) return;
+        setCurrentUser(null);
+        setAuthStatus("anonymous");
+      }
+    };
+
+    void restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const value = useMemo<AppStateValue>(
     () => ({
       // 認証
       authStatus,
       currentUser,
-      signIn: () => {
-        setCurrentUser({
-          id: "user-01",
-          name: "リク",
-          level: 12,
-          role: "captain",
-        });
+      signIn: async ({ email, password, name }) => {
+        try {
+          const response = await postRegister({ email, password, name });
+          setCurrentUser(mapUser(response.user));
+          setAuthStatus("authenticated");
+          return;
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.status !== 409) {
+            throw error;
+          }
+        }
+
+        const response = await postLogin({ email, password });
+        setCurrentUser(mapUser(response.user));
         setAuthStatus("authenticated");
       },
-      signOut: () => {
+      signOut: async () => {
+        try {
+          await postLogout();
+        } catch {
+          // Clear local auth state even if the backend session is already gone.
+        }
         setCurrentUser(null);
         setAuthStatus("anonymous");
       },

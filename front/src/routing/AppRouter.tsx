@@ -32,16 +32,6 @@ export function AppRouter() {
   const path = useRoutePath();
   const { authStatus } = useAppState();
 
-  useEffect(() => {
-    if (authStatus === "authenticated" && path === "/login") {
-      navigateTo("/map");
-    }
-
-    if (authStatus === "anonymous" && path !== "/login") {
-      navigateTo("/login");
-    }
-  }, [authStatus, path]);
-
   const content = useMemo(() => {
     switch (path) {
       case "/home":
@@ -61,6 +51,32 @@ export function AppRouter() {
         return <LoginPage />;
     }
   }, [path]);
+
+  useEffect(() => {
+    if (authStatus === "loading") {
+      return;
+    }
+
+    if (authStatus === "authenticated" && path === "/login") {
+      navigateTo("/map");
+    }
+
+    if (authStatus === "anonymous" && path !== "/login") {
+      navigateTo("/login");
+    }
+  }, [authStatus, path]);
+
+  if (authStatus === "loading") {
+    return (
+      <section className="auth-screen auth-layout">
+        <div className="hero-panel auth-panel">
+          <p className="eyebrow">初期化中</p>
+          <h1>セッションを確認しています</h1>
+          <p className="muted">バックエンドの認証状態を読み込んでいます。</p>
+        </div>
+      </section>
+    );
+  }
 
   if (path === "/login") {
     return content;

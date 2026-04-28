@@ -72,11 +72,14 @@ export type RoutePath =
   | "/report";
 
 export type AuthStatus = "anonymous" | "authenticated";
+export type LoadingAuthStatus = AuthStatus | "loading";
 
 export type User = {
   id: string;
+  email: string;
   name: string;
   level: number;
+  xp: number;
   role: "captain" | "scout" | "engineer";
 };
 
