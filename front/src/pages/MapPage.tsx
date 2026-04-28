@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { User as UserIcon, ArrowLeft as ArrowLeftIcon } from "lucide-react";
 import { MapView } from "../components/map/MapView";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useNearbyPOI } from "../hooks/useNearbyPOI";
@@ -8,6 +9,7 @@ import { useAppState } from "../state/AppStateContext";
 import { postGameBase } from "../api/game";
 import { postStructure } from "../api/structures";
 import { fetchRoadRoute } from "../utils/roadRoute";
+import { calcDistance } from "../utils/geo";
 import type { Enemy, LatLng, MapViewport, Structure } from "../types/game";
 
 // ── 定数 ──────────────────────────────────────────────────────────
@@ -55,7 +57,7 @@ export function MapPage() {
 
   // ── 位置情報 ─────────────────────────────────────────────────────
   const { position: gpsPosition, error: gpsError } = useGeolocation();
-  const [isSpoofing, setIsSpoofing] = useState(import.meta.env.DEV);
+  const [isSpoofing, setIsSpoofing] = useState(false);
   const [spoofedPosition, setSpoofedPosition] = useState<LatLng | null>(null);
   const currentPosition = isSpoofing ? spoofedPosition : gpsPosition;
 
@@ -68,6 +70,7 @@ export function MapPage() {
   >([]);
   const [attackBuff, setAttackBuff] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showStageSelect, setShowStageSelect] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPlacingStructure, setIsPlacingStructure] = useState(false);
@@ -232,6 +235,15 @@ export function MapPage() {
     const cost = type === "turret" ? TURRET_COST : WALL_COST;
     if (bitcoin < cost) return;
 
+    // 同種施設の射程内には設置不可
+    const rangeM = type === "turret" ? 80 : 35;
+    const tooClose = structures.some(
+      (s) =>
+        s.kind === type &&
+        calcDistance(currentPosition, { lat: s.lat, lng: s.lng }) < rangeM,
+    );
+    if (tooClose) return;
+
     setIsPlacingStructure(true);
     try {
       const newStructure: Structure = {
@@ -363,16 +375,76 @@ export function MapPage() {
         </div>
       </div>
 
-      {/* 右下フローティング CTA（waiting のみ） */}
-      {gamePhase === "waiting" && (
-        <button
-          type="button"
-          className="primary-button floating-action"
-          onClick={handleStartGame}
-          disabled={!currentPosition || isStartingGame}
-        >
-          {isStartingGame ? "開始中..." : "ゲームを始める"}
-        </button>
+      {/* タイトル画面（waiting フェーズ） */}
+      {gamePhase === "waiting" && !showStageSelect && (
+        <div className="title-screen">
+          <button
+            type="button"
+            className="title-user-btn"
+            aria-label="ユーザー情報"
+            onClick={() => setShowSettings(true)}
+          >
+            <UserIcon size={20} />
+          </button>
+          <div className="title-screen-content">
+            <img src="/favicon.svg" alt="Neighbor Security logo" className="title-logo" />
+            <h1 className="title-name">Neighbor Security</h1>
+
+            <button
+              type="button"
+              className="primary-button title-start-btn"
+              onClick={() => setShowStageSelect(true)}
+              disabled={!currentPosition}
+            >
+              ゲームを始める
+            </button>
+            {!currentPosition && (
+              <p className="title-gps-hint">GPS 取得中...</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ステージ選択画面 */}
+      {gamePhase === "waiting" && showStageSelect && (
+        <div className="title-screen">
+          <div className="stage-select-content">
+            <button
+              type="button"
+              className="stage-select-back"
+              onClick={() => setShowStageSelect(false)}
+            >
+              <ArrowLeftIcon size={14} /> タイトルに戻る
+            </button>
+            <h2 className="stage-select-title">ステージを選択</h2>
+            <div className="stage-list">
+              {/* Stage 1 — プレイ可能 */}
+              <button
+                type="button"
+                className="stage-card stage-card--active"
+                onClick={handleStartGame}
+                disabled={isStartingGame}
+              >
+                <span className="stage-number">STAGE 1</span>
+                <span className="stage-difficulty">★☆☆</span>
+              </button>
+
+              {/* Stage 2 — Coming Soon */}
+              <div className="stage-card stage-card--soon">
+                <span className="stage-number">STAGE 2</span>
+                <span className="stage-coming-badge">Coming Soon</span>
+                <span className="stage-difficulty">★★☆</span>
+              </div>
+
+              {/* Stage 3 — Coming Soon */}
+              <div className="stage-card stage-card--soon">
+                <span className="stage-number">STAGE 3</span>
+                <span className="stage-coming-badge">Coming Soon</span>
+                <span className="stage-difficulty">★★★</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 地図 */}
