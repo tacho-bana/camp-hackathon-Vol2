@@ -28,6 +28,12 @@ export type Enemy = {
   maxHp: number;
   speed: number;
   state: EnemyState;
+  /** 道路に沿ったルートのウェイポイント列 (未取得時は undefined) */
+  route?: LatLng[];
+  /** route 上の現在ターゲットインデックス */
+  routeIndex?: number;
+  /** バトル開始から実際に移動を始めるまでの待機ティック数 */
+  spawnDelay?: number;
 };
 
 /** フロントが保持する防衛施設の状態（API の StructureResponse をマッピング） */
