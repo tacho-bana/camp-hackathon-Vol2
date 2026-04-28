@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import {
+  ArrowLeft,
+  Pause,
+  Settings,
+  Crosshair,
+  BrickWall,
+  Swords,
+  Locate,
+} from "lucide-react";
 import type {
   Enemy,
   GamePhase,
@@ -547,7 +556,7 @@ export function MapView({
             boxShadow: "0 0 0 1px rgba(148,163,184,0.2)",
           }}
         >
-          ◎
+          <Locate size={15} />
         </button>
 
         <div className="enemy-overlay-layer" aria-hidden="true">
@@ -590,7 +599,7 @@ export function MapView({
                   aria-label="開始前に戻る"
                   onClick={() => onPendingBackChange("toWaiting")}
                 >
-                  ←
+                  <ArrowLeft size={14} />
                 </button>
               )}
               {gamePhase === "battle" && onReturnToPrep && (
@@ -600,7 +609,7 @@ export function MapView({
                   aria-label="準備に戻る"
                   onClick={() => onPendingBackChange("toPrep")}
                 >
-                  ⏸
+                  <Pause size={14} />
                 </button>
               )}
               <strong className="map-status-phase">
@@ -650,7 +659,7 @@ export function MapView({
             onClick={onStartBattle}
             disabled={isStartingBattle}
           >
-            {isStartingBattle ? "開始中..." : "ゲームスタート"}
+            {isStartingBattle ? "開始中..." : <><Swords size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />ゲームスタート</>}
           </button>
         )}
 
@@ -662,7 +671,7 @@ export function MapView({
             aria-label="設定"
             onClick={onOpenSettings}
           >
-            ⚙
+            <Settings size={18} />
           </button>
         )}
 
@@ -676,7 +685,7 @@ export function MapView({
               aria-label="壁を設置"
               onClick={() => setPendingPlacement("wall")}
             >
-              🧱
+              <BrickWall size={20} />
             </button>
             <button
               type="button"
@@ -684,7 +693,7 @@ export function MapView({
               aria-label="タレットを設置"
               onClick={() => setPendingPlacement("turret")}
             >
-              🔫
+              <Crosshair size={20} />
             </button>
           </>
         )}
