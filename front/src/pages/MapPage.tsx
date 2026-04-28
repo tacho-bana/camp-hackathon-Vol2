@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { User as UserIcon, ArrowLeft as ArrowLeftIcon } from "lucide-react";
+import { User as UserIcon, ArrowLeft as ArrowLeftIcon, BookOpen as BookOpenIcon } from "lucide-react";
+import { TutorialModal } from "../components/TutorialModal";
 import { MapView } from "../components/map/MapView";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useNearbyPOI } from "../hooks/useNearbyPOI";
@@ -71,6 +72,7 @@ export function MapPage() {
   const [attackBuff, setAttackBuff] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showStageSelect, setShowStageSelect] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPlacingStructure, setIsPlacingStructure] = useState(false);
@@ -399,6 +401,14 @@ export function MapPage() {
             >
               ゲームを始める
             </button>
+            <button
+              type="button"
+              className="title-tutorial-btn"
+              onClick={() => setShowTutorial(true)}
+            >
+              <BookOpenIcon size={15} />
+              遊び方
+            </button>
             {!currentPosition && (
               <p className="title-gps-hint">GPS 取得中...</p>
             )}
@@ -494,6 +504,10 @@ export function MapPage() {
             Chrome のアドレスバー横の鍵アイコン →「位置情報」→「許可」に変更してください。
           </span>
         </article>
+      )}
+
+      {showTutorial && (
+        <TutorialModal onClose={() => setShowTutorial(false)} />
       )}
 
       {showSettings && (
