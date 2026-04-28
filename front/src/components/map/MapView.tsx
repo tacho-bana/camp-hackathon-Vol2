@@ -21,6 +21,9 @@ import type {
 } from "../../types/game";
 import { EnemySprite } from "./EnemySprite";
 import { PlaceMarker } from "./PlaceMarker";
+import { ElectricTowerSprite } from "./tower/ElectricTowerSprite";
+import { TalettSprite } from "./tower/TalettSprite";
+import { FirewallSprite } from "./tower/FirewallSprite";
 
 const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -33,9 +36,89 @@ type EnemyOverlayItem = {
   y: number;
 };
 
+type TowerOverlayItem = {
+  id: string;
+  structure: Structure;
+  x: number;
+  y: number;
+  aimingAngleRad: number;
+  firing: boolean;
+  wobble: number;
+};
+
+type BeamOverlayItem = {
+  id: string;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  polylinePoints: string;
+};
+
 type EnemyRoute = {
   waypoints: LatLng[];
 };
+
+function distanceMeters(a: LatLng, b: LatLng): number {
+  const rad = Math.PI / 180;
+  const earthRadius = 6371000;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLng = (b.lng - a.lng) * rad;
+  const lat1 = a.lat * rad;
+  const lat2 = b.lat * rad;
+
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return 2 * earthRadius * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function triangleWave(value: number): number {
+  const wrapped = value - Math.floor(value);
+  return 1 - 4 * Math.abs(wrapped - 0.5);
+}
+
+function sawtoothWave(value: number): number {
+  const wrapped = value - Math.floor(value);
+  return wrapped * 2 - 1;
+}
+
+function buildNormalTrianglePolyline(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  timeSec: number,
+): string {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const length = Math.hypot(dx, dy);
+
+  if (length < 1) {
+    return `${fromX},${fromY} ${toX},${toY}`;
+  }
+
+  const tx = dx / length;
+  const ty = dy / length;
+  const nx = -ty;
+  const ny = tx;
+
+  const segments = 16;
+  const freq = 5.5;
+  const phase = timeSec * 4.6;
+  const amplitude = Math.min(10, length * 0.08);
+  const points: string[] = [];
+
+  for (let i = 0; i <= segments; i += 1) {
+    const t = i / segments;
+    const px = fromX + dx * t;
+    const py = fromY + dy * t;
+    const wave = triangleWave(t * freq + phase) * amplitude;
+    points.push(`${px + nx * wave},${py + ny * wave}`);
+  }
+
+  return points.join(" ");
+}
 
 /** 中心点から半径 R メートルの円を GeoJSON polygon 座標列で近似する */
 function circleCoords(
@@ -124,12 +207,14 @@ export function MapView({
   const currentPositionMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const homeMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const nearbyPlaceMarkersRef = useRef<mapboxgl.Marker[]>([]);
-  const structureMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const hasAutocenteredRef = useRef(false);
   const currentPositionRef = useRef(currentPosition);
   const savedBearingRef = useRef(-12);
   const savedPitchRef = useRef(35);
   const [enemyOverlayItems, setEnemyOverlayItems] = useState<EnemyOverlayItem[]>([]);
+  const [towerOverlayItems, setTowerOverlayItems] = useState<TowerOverlayItem[]>([]);
+  const [beamOverlayItems, setBeamOverlayItems] = useState<BeamOverlayItem[]>([]);
+  const [effectTimeSec, setEffectTimeSec] = useState(0);
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
@@ -139,6 +224,24 @@ export function MapView({
   const [pendingPlacement, setPendingPlacement] = useState<"turret" | "wall" | null>(null);
 
   // ── 地図初期化 ────────────────────────────────────────────────
+  useEffect(() => {
+    let rafId = 0;
+    let mounted = true;
+    const tick = (ms: number) => {
+      if (!mounted) {
+        return;
+      }
+      setEffectTimeSec(ms / 1000);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      mounted = false;
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
+
   useEffect(() => {
     if (!mapboxToken || !mapContainerRef.current || mapRef.current) return;
 
@@ -397,44 +500,6 @@ export function MapView({
     };
   }, [isSpoofing, onSpoofedLocationSet, mapStatus]);
 
-  // ── 構造物マーカー ────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || mapStatus !== "ready") return;
-
-    const currentIds = new Set(structures.map((s) => s.id));
-    for (const [id, marker] of structureMarkersRef.current.entries()) {
-      if (!currentIds.has(id)) {
-        marker.remove();
-        structureMarkersRef.current.delete(id);
-      }
-    }
-    for (const structure of structures) {
-      if (!structureMarkersRef.current.has(structure.id)) {
-        const isTurret = structure.kind === "turret";
-        const el = document.createElement("div");
-        el.style.cssText = `
-          width:32px;height:32px;
-          background:${isTurret ? "#f97316" : "#60a5fa"};
-          border:2.5px solid #fff;
-          border-radius:${isTurret ? "8px" : "50%"};
-          display:flex;align-items:center;justify-content:center;
-          font-size:16px;
-          box-shadow:0 2px 8px rgba(0,0,0,0.55);
-          cursor:pointer;
-        `;
-        el.textContent = isTurret ? "🔫" : "🧱";
-        el.addEventListener("click", (e) => {
-          e.stopPropagation();
-          setPendingDeleteStructure(structure);
-        });
-        const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([structure.lng, structure.lat])
-          .addTo(mapRef.current!);
-        structureMarkersRef.current.set(structure.id, marker);
-      }
-    }
-  }, [structures, mapStatus]);
-
   // ── 敵オーバーレイ位置計算 ────────────────────────────────────
   useEffect(() => {
     const aliveEnemies = enemies.filter((e) => e.state !== "dead");
@@ -472,6 +537,95 @@ export function MapView({
     };
   }, [enemies, mapStatus]);
 
+  useEffect(() => {
+    const aliveEnemies = enemies.filter((enemy) => enemy.state !== "dead");
+
+    const buildFromMap = (map: mapboxgl.Map) => {
+      const enemiesProjected = new Map<string, { x: number; y: number }>();
+      aliveEnemies.forEach((enemy) => {
+        const point = map.project([enemy.lng, enemy.lat]);
+        enemiesProjected.set(enemy.id, { x: point.x, y: point.y });
+      });
+
+      setTowerOverlayItems(
+        structures.map((structure, index) => {
+          const point = map.project([structure.lng, structure.lat]);
+          const inRange = aliveEnemies
+            .map((enemy) => ({ enemy, d: distanceMeters(structure, enemy) }))
+            .filter((entry) => entry.d <= structure.rangeM)
+            .sort((a, b) => a.d - b.d);
+
+          const target = inRange.length > 0 ? enemiesProjected.get(inRange[0].enemy.id) : null;
+          const aimingAngleRad = target
+            ? Math.atan2(target.y - point.y, target.x - point.x)
+            : -Math.PI / 2;
+
+          return {
+            id: structure.id,
+            structure,
+            x: point.x,
+            y: point.y,
+            aimingAngleRad,
+            firing: inRange.length > 0,
+            wobble: sawtoothWave(effectTimeSec * 1.45 + index * 0.25) * 2.8,
+          };
+        }),
+      );
+
+      const beams: BeamOverlayItem[] = [];
+      structures.forEach((structure) => {
+        const from = map.project([structure.lng, structure.lat]);
+        const sourceX = from.x;
+        const sourceY = from.y - 56;
+
+        aliveEnemies
+          .map((enemy) => ({ enemy, d: distanceMeters(structure, enemy) }))
+          .filter((entry) => entry.d <= structure.rangeM)
+          .forEach((entry) => {
+            const target = enemiesProjected.get(entry.enemy.id);
+            if (!target) {
+              return;
+            }
+
+            beams.push({
+              id: `${structure.id}-${entry.enemy.id}`,
+              fromX: sourceX,
+              fromY: sourceY,
+              toX: target.x,
+              toY: target.y - 34,
+              polylinePoints: buildNormalTrianglePolyline(
+                sourceX,
+                sourceY,
+                target.x,
+                target.y - 34,
+                effectTimeSec,
+              ),
+            });
+          });
+      });
+
+      setBeamOverlayItems(beams);
+    };
+
+    if (!mapRef.current || mapStatus !== "ready") {
+      setTowerOverlayItems(
+        structures.map((structure, index) => ({
+          id: structure.id,
+          structure,
+          x: 180 + (index % 3) * 140,
+          y: 370 + Math.floor(index / 3) * 110,
+          aimingAngleRad: -Math.PI / 2,
+          firing: false,
+          wobble: sawtoothWave(effectTimeSec * 1.25 + index * 0.2) * 2,
+        })),
+      );
+      setBeamOverlayItems([]);
+      return;
+    }
+
+    buildFromMap(mapRef.current);
+  }, [effectTimeSec, enemies, structures, mapStatus]);
+
   // currentPosition を ref に同期
   useEffect(() => { currentPositionRef.current = currentPosition; }, [currentPosition]);
 
@@ -503,6 +657,52 @@ export function MapView({
     <section className="map-view">
       <div className="map-canvas">
         <div ref={mapContainerRef} className="mapbox-container" />
+
+        <svg className="tower-laser-layer" aria-hidden="true">
+          {beamOverlayItems.map((beam) => (
+            <g key={beam.id}>
+              <line
+                className="tower-laser-main"
+                x1={beam.fromX}
+                y1={beam.fromY}
+                x2={beam.toX}
+                y2={beam.toY}
+              />
+              <polyline className="tower-laser-wave" points={beam.polylinePoints} />
+            </g>
+          ))}
+        </svg>
+
+        <div className="tower-overlay-layer" aria-hidden="true">
+          {towerOverlayItems.map((item) => {
+            const kind = item.structure?.kind;
+
+            let SpriteComponent = ElectricTowerSprite;
+            if (kind === "turret") {
+              SpriteComponent = TalettSprite;
+            } else if (kind === "wall") {
+              SpriteComponent = FirewallSprite;
+            }
+
+            return (
+              <div
+                key={item.id}
+                className="tower-overlay-item"
+                style={{ left: item.x - 52, top: item.y - 130, cursor: "pointer" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPendingDeleteStructure(item.structure);
+                }}
+              >
+                <SpriteComponent
+                  aimingAngleRad={item.aimingAngleRad}
+                  firing={item.firing}
+                  wobble={item.wobble}
+                />
+              </div>
+            );
+          })}
+        </div>
 
         <button
           type="button"

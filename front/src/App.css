@@ -347,10 +347,103 @@
   inset: 0;
 }
 
+.tower-laser-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.tower-laser-main {
+  stroke: rgba(14, 165, 233, 0.9);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.85));
+}
+
+.tower-laser-wave {
+  fill: none;
+  stroke: rgba(165, 243, 252, 0.95);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 5px rgba(6, 182, 212, 0.8));
+}
+
+.tower-overlay-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.tower-overlay-item {
+  position: absolute;
+}
+
+.electric-tower {
+  position: relative;
+  width: 104px;
+  height: 130px;
+  transform-origin: 50% 100%;
+}
+
+.electric-tower img {
+  position: absolute;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.electric-tower-base {
+  left: 50%;
+  bottom: 0;
+  width: 52px;
+  transform: translateX(-50%);
+}
+
+.electric-tower-core-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  width: 74px;
+  height: 96px;
+  will-change: transform;
+}
+
+.electric-tower-core {
+  left: 0;
+  bottom: 0;
+  width: 74px;
+}
+
+.electric-tower-head-wrap {
+  position: absolute;
+  left: 50%;
+  top: 42px;
+  width: 74px;
+  height: 40px;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.electric-tower-head {
+  left: 50%;
+  top: 50%;
+  width: 74px;
+  transform: translate(-50%, -50%);
+}
+
+.electric-tower.firing {
+  filter: drop-shadow(0 0 9px rgba(34, 211, 238, 0.6));
+}
+
 .enemy-overlay-layer {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 4;
   pointer-events: none;
 }
 
@@ -568,6 +661,150 @@
   .auth-panel {
     width: 100%;
   }
+}
+/* Talett Sprite */
+.talett-sprite {
+  position: relative;
+  width: 104px;
+  height: 130px;
+  transform-origin: 50% 100%;
+}
+
+.talett-sprite img {
+  position: absolute;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.talett-base-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 60px;
+  will-change: transform;
+}
+.talett-base {
+  left: 0;
+  bottom: 0;
+  width: 60px;
+}
+
+.talett-mid-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 25px;
+  width: 70px;
+  will-change: transform;
+}
+.talett-mid {
+  left: 0;
+  bottom: 0;
+  width: 70px;
+}
+
+.talett-head-wrap {
+  position: absolute;
+  left: 50%;
+  top: 60px;
+  width: 60px;
+  height: 50px;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.talett-head {
+  left: 50%;
+  top: 50%;
+  width: 60px;
+  transform: translate(-50%, -50%);
+}
+
+.talett-sprite.firing {
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+}
+
+/* Firewall Sprite */
+.firewall-sprite {
+  position: relative;
+  width: 104px;
+  height: 130px;
+  transform-origin: 50% 100%;
+}
+.firewall-sprite img {
+  position: absolute;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.firewall-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  width: 90px;
+  height: 80px;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.firewall-base {
+  left: 50%;
+  top: 50%;
+  width: 90px;
+  transform: translate(-50%, -50%);
+}
+.firewall-sprite.firing {
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.7));
+}
+
+/* House Sprite */
+.house-sprite {
+  position: relative;
+  width: 64px;
+  height: 72px;
+}
+.house-sprite img {
+  position: absolute;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.house-body-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  width: 48px;
+  will-change: transform;
+}
+.house-body {
+  left: 50%;
+  bottom: 0;
+  width: 48px;
+  transform: translateX(-50%);
+}
+.house-neck-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  width: 20px;
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+.house-neck {
+  left: 50%;
+  bottom: 0;
+  width: 20px;
+  transform: translateX(-50%);
+}
+.house-head-wrap {
+  position: absolute;
+  left: 50%;
+  top: 15px;
+  width: 32px;
+  height: 32px;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.house-head {
+  left: 50%;
+  top: 50%;
+  width: 32px;
+  transform: translate(-50%, -50%);
 }
 
 /* ── スマホ縦（≤768px） ── */
