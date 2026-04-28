@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import {
+  ArrowLeft,
+  Pause,
+  Settings,
+  Crosshair,
+  BrickWall,
+  Swords,
+  Locate,
+} from "lucide-react";
 import type {
   Enemy,
   GamePhase,
@@ -62,7 +71,6 @@ export function MapView({
   bitcoin,
   homeHp,
   battleRemaining,
-  currentPositionLabel,
   enemyRoutes,
   onStartBattle,
   isStartingBattle,
@@ -78,7 +86,6 @@ export function MapView({
   onOpenSettings,
   pendingBack,
   onPendingBackChange,
-  isFetchingRoutes = false,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -96,7 +103,6 @@ export function MapView({
   bitcoin: number;
   homeHp: number;
   battleRemaining: number;
-  currentPositionLabel: string;
   enemyRoutes: EnemyRoute[];
   onStartBattle?: () => void;
   isStartingBattle?: boolean;
@@ -112,7 +118,6 @@ export function MapView({
   onOpenSettings?: () => void;
   pendingBack: "toWaiting" | "toPrep" | null;
   onPendingBackChange: (v: "toWaiting" | "toPrep" | null) => void;
-  isFetchingRoutes?: boolean;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -128,7 +133,7 @@ export function MapView({
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
-  const [actualZoom, setActualZoom] = useState(13);
+  const [, setActualZoom] = useState(13);
   const [isNorthLocked, setIsNorthLocked] = useState(false);
   const [pendingDeleteStructure, setPendingDeleteStructure] = useState<Structure | null>(null);
   const [pendingPlacement, setPendingPlacement] = useState<"turret" | "wall" | null>(null);
@@ -551,7 +556,7 @@ export function MapView({
             boxShadow: "0 0 0 1px rgba(148,163,184,0.2)",
           }}
         >
-          ◎
+          <Locate size={15} />
         </button>
 
         <div className="enemy-overlay-layer" aria-hidden="true">
@@ -564,28 +569,6 @@ export function MapView({
               <EnemySprite enemy={item.enemy} />
             </div>
           ))}
-        </div>
-
-        <div className="map-overlay map-overlay-top">
-          <span>
-            表示範囲: {viewport.x}, {viewport.y}
-          </span>
-          <span>ズーム: {actualZoom.toFixed(1)}x</span>
-        </div>
-
-        <div className="map-layer-stack">
-
-          <div className="map-place-list">
-            {nearbyPlaces.map((place) => (
-              <PlaceMarker
-                key={place.id}
-                place={place}
-                selected={selectedMarker === place.id}
-                deployed={deployedStructures.includes(place.id)}
-                onClick={() => onSelectMarker(place.id)}
-              />
-            ))}
-          </div>
         </div>
 
         {placementPreview ? (
@@ -608,14 +591,36 @@ export function MapView({
           </div>
         ) : (
           <div className="map-status-card">
-            <strong>
-              {gamePhase === "waiting" && "待機中"}
-              {gamePhase === "prep" && "準備中"}
-              {gamePhase === "battle" &&
-                `⚔ ${Math.floor(battleRemaining / 60)}:${String(battleRemaining % 60).padStart(2, "0")}`}
-              {gamePhase === "result" &&
-                (gameResult === "win" ? "🎉 VICTORY!" : "💀 DEFEAT...")}
-            </strong>
+            <div className="map-status-card-header">
+              {gamePhase === "prep" && onReturnToWaiting && (
+                <button
+                  type="button"
+                  className="map-status-back-btn"
+                  aria-label="開始前に戻る"
+                  onClick={() => onPendingBackChange("toWaiting")}
+                >
+                  <ArrowLeft size={14} />
+                </button>
+              )}
+              {gamePhase === "battle" && onReturnToPrep && (
+                <button
+                  type="button"
+                  className="map-status-back-btn map-status-back-btn--pause"
+                  aria-label="準備に戻る"
+                  onClick={() => onPendingBackChange("toPrep")}
+                >
+                  <Pause size={14} />
+                </button>
+              )}
+              <strong className="map-status-phase">
+                {gamePhase === "waiting" && "待機中"}
+                {gamePhase === "prep" && "準備中"}
+                {gamePhase === "battle" &&
+                  `${Math.floor(battleRemaining / 60)}:${String(battleRemaining % 60).padStart(2, "0")}`}
+                {gamePhase === "result" &&
+                  (gameResult === "win" ? "🎉 VICTORY!" : "💀 DEFEAT...")}
+              </strong>
+            </div>
             <span>
               BTC {bitcoin} / HP{" "}
               <span
@@ -633,29 +638,11 @@ export function MapView({
               </span>
               /100
             </span>
-            {gamePhase === "prep" && enemies.length > 0 && (
-              <span style={{ fontSize: "0.82rem", color: "#9aa9bc" }}>
-                敵 {enemies.length} 体が侵攻予定
-              </span>
-            )}
             {(gamePhase === "battle" || gamePhase === "result") && (
               <span>
                 敵 {deadCount}/{enemies.length} 撃破
               </span>
             )}
-            {gamePhase === "prep" && isFetchingRoutes && (
-              <span style={{ fontSize: "0.78rem", color: "#9aa9bc" }}>
-                🗺 ルート取得中...
-              </span>
-            )}
-            {gamePhase === "prep" && !isFetchingRoutes && enemyRoutes.length > 0 && (
-              <span style={{ fontSize: "0.78rem", color: "#9aa9bc" }}>
-                🗺 ルート表示中
-              </span>
-            )}
-            <span style={{ fontSize: "0.78rem", color: "#7dd3fc" }}>
-              {currentPositionLabel}
-            </span>
           </div>
         )}
 
@@ -672,7 +659,7 @@ export function MapView({
             onClick={onStartBattle}
             disabled={isStartingBattle}
           >
-            {isStartingBattle ? "開始中..." : "⚔ ゲームスタート"}
+            {isStartingBattle ? "開始中..." : <><Swords size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />ゲームスタート</>}
           </button>
         )}
 
@@ -684,21 +671,10 @@ export function MapView({
             aria-label="設定"
             onClick={onOpenSettings}
           >
-            ⚙
+            <Settings size={18} />
           </button>
         )}
 
-        {/* 戻るボタン（アイコンのみ） */}
-        {gamePhase === "prep" && onReturnToWaiting && (
-          <button
-            type="button"
-            className="map-back-btn"
-            aria-label="開始前に戻る"
-            onClick={() => onPendingBackChange("toWaiting")}
-          >
-            ←
-          </button>
-        )}
 
         {/* 施設配置ボタン（prep フェーズ・左下） */}
         {gamePhase === "prep" && onPlaceStructure && (
@@ -709,7 +685,7 @@ export function MapView({
               aria-label="壁を設置"
               onClick={() => setPendingPlacement("wall")}
             >
-              🧱
+              <BrickWall size={20} />
             </button>
             <button
               type="button"
@@ -717,7 +693,7 @@ export function MapView({
               aria-label="タレットを設置"
               onClick={() => setPendingPlacement("turret")}
             >
-              🔫
+              <Crosshair size={20} />
             </button>
           </>
         )}
@@ -767,16 +743,6 @@ export function MapView({
               </div>
             </div>
           </div>
-        )}
-        {gamePhase === "battle" && onReturnToPrep && (
-          <button
-            type="button"
-            className="map-back-btn map-back-btn--battle"
-            aria-label="準備に戻る"
-            onClick={() => onPendingBackChange("toPrep")}
-          >
-            ⏸
-          </button>
         )}
 
         {/* 施設削除確認ダイアログ */}
