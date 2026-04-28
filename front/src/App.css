@@ -1137,9 +1137,9 @@
   .map-place-btn--turret {
     left: 16px;
   }
-  .map-settings-btn      { bottom: 28px; }
-  .map-place-btn--wall   { bottom: 80px; }
-  .map-place-btn--turret { bottom: 132px; }
+  .map-settings-btn      { bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+  .map-place-btn--wall   { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+  .map-place-btn--turret { bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ── 戻る確認ダイアログ ──────────────────────────────────────── */
@@ -1245,18 +1245,18 @@
   .map-start-battle-btn {
     left: auto;
     right: 16px;
-    bottom: 28px;
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
     transform: none;
     font-size: 1rem;
     padding: 14px 24px;
   }
 
   .floating-action {
-    bottom: 28px !important;
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .map-buff-indicator {
-    bottom: 80px;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -1282,6 +1282,7 @@
   gap: 18px;
   text-align: center;
   padding: 40px 32px;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
 }
 
 .title-logo {
