@@ -1137,9 +1137,9 @@
   .map-place-btn--turret {
     left: 16px;
   }
-  .map-settings-btn      { bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
-  .map-place-btn--wall   { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
-  .map-place-btn--turret { bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
+  .map-settings-btn      { bottom: max(80px, calc(28px + env(safe-area-inset-bottom, 60px))); }
+  .map-place-btn--wall   { bottom: max(132px, calc(80px + env(safe-area-inset-bottom, 60px))); }
+  .map-place-btn--turret { bottom: max(184px, calc(132px + env(safe-area-inset-bottom, 60px))); }
 }
 
 /* ── 戻る確認ダイアログ ──────────────────────────────────────── */
@@ -1245,18 +1245,18 @@
   .map-start-battle-btn {
     left: auto;
     right: 16px;
-    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    bottom: max(80px, calc(28px + env(safe-area-inset-bottom, 60px)));
     transform: none;
     font-size: 1rem;
     padding: 14px 24px;
   }
 
   .floating-action {
-    bottom: calc(28px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: max(80px, calc(28px + env(safe-area-inset-bottom, 60px))) !important;
   }
 
   .map-buff-indicator {
-    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    bottom: max(132px, calc(80px + env(safe-area-inset-bottom, 60px)));
   }
 }
 
