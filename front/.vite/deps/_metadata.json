@@ -1,0 +1,38 @@
+{
+  "hash": "8af7aab4",
+  "configHash": "086190d3",
+  "lockfileHash": "7e8490db",
+  "browserHash": "c74fda25",
+  "optimized": {
+    "mapbox-gl": {
+      "src": "../../node_modules/mapbox-gl/dist/mapbox-gl.js",
+      "file": "mapbox-gl.js",
+      "fileHash": "418ca372",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "f7f6aa70",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "d63eadb6",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "35fd31f0",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-CFx7f7Oh": {
+      "file": "chunk-CFx7f7Oh.js",
+      "isDynamicEntry": false
+    }
+  }
+}

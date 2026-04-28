@@ -1,24 +1,37 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BottomActionPanel } from "../components/ui/BottomActionPanel";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapView } from "../components/map/MapView";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useNearbyPOI } from "../hooks/useNearbyPOI";
 import { useCountdown } from "../hooks/useCountdown";
-import { useEnemyPolling } from "../hooks/useEnemyPolling";
+import { useGameSimulation, type CombatEvent } from "../hooks/useGameSimulation";
 import { useAppState } from "../state/AppStateContext";
-import { postGameBase, postGameStart, postGameClear, postGameEnd } from "../api/game";
+import { postGameBase } from "../api/game";
 import { postStructure } from "../api/structures";
-import type {
-  Enemy,
-  LatLng,
-  MapViewport,
-  PlacementPreview,
-  Structure,
-} from "../types/game";
+import { fetchRoadRoute } from "../utils/roadRoute";
+import type { Enemy, LatLng, MapViewport, Structure } from "../types/game";
 
-const CHECK_IN_RADIUS_M = 50;
-const STRUCTURE_COST = 150;
-const CHECKIN_REWARD = 30;
+// ── 定数 ──────────────────────────────────────────────────────────
+const TURRET_COST = 100;
+const WALL_COST = 50;
+const CONBINI_BUFF_RADIUS_M = 50;
+
+function spawnTestEnemies(base: LatLng): Enemy[] {
+  const offsets: Array<{ lat: number; lng: number }> = [
+    { lat: 0.0027, lng: 0.0005 },
+    { lat: -0.0008, lng: 0.0028 },
+    { lat: -0.0020, lng: -0.0018 },
+  ];
+  return offsets.map((offset, i) => ({
+    id: `test-enemy-${i + 1}`,
+    lat: base.lat + offset.lat,
+    lng: base.lng + offset.lng,
+    hp: 100,
+    maxHp: 100,
+    speed: 2.5,
+    state: "spawned" as const,
+  }));
+}
+// ─────────────────────────────────────────────────────────────────
 
 export function MapPage() {
   const {
@@ -30,226 +43,317 @@ export function MapPage() {
     structures,
     enemies,
     setGamePhase,
-    addBitcoin,
     spendBitcoin,
     setHomeCoords,
     setStructures,
     setEnemies,
+    setHomeHp,
     signOut,
+    resetGame,
   } = useAppState();
 
+  // ── 位置情報 ─────────────────────────────────────────────────────
   const { position: gpsPosition, error: gpsError } = useGeolocation();
   const [isSpoofing, setIsSpoofing] = useState(import.meta.env.DEV);
   const [spoofedPosition, setSpoofedPosition] = useState<LatLng | null>(null);
-  const currentPosition = isSpoofing
-    ? spoofedPosition
-    : (gpsPosition ?? spoofedPosition);
+  const currentPosition = isSpoofing ? spoofedPosition : gpsPosition;
 
-  const [viewport, setViewport] = useState<MapViewport>({
-    x: 24,
-    y: 12,
-    zoom: 1.4,
-  });
+  // ── ゲームローカル状態 ──────────────────────────────────────────
+  const [viewport] = useState<MapViewport>({ x: 24, y: 12, zoom: 1.4 });
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
-  const [checkedInPlaceIds, setCheckedInPlaceIds] = useState<string[]>([]);
-  const [deployedStructurePlaceIds, setDeployedStructurePlaceIds] = useState<string[]>([]);
-  const [placementPreview, setPlacementPreview] =
-    useState<PlacementPreview | null>(null);
+  const [enemySpawnPoints, setEnemySpawnPoints] = useState<LatLng[]>([]);
+  const [enemyDisplayRoutes, setEnemyDisplayRoutes] = useState<
+    Array<{ waypoints: LatLng[] }>
+  >([]);
+  const [attackBuff, setAttackBuff] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPlacingStructure, setIsPlacingStructure] = useState(false);
+  const [isFetchingRoutes, setIsFetchingRoutes] = useState(false);
+  const [gameResult, setGameResult] = useState<"win" | "lose" | null>(null);
+  const [hitEnemyIds, setHitEnemyIds] = useState<Set<string>>(new Set());
+  /** 戻る確認ダイアログの状態（MapView から引き上げ） */
+  const [pendingBack, setPendingBack] = useState<"toWaiting" | "toPrep" | null>(null);
+  /** タイマーリセット用キー（新規ゲーム開始時にインクリメント） */
+  const [battleKey, setBattleKey] = useState(0);
   const gameEndCalledRef = useRef(false);
+  const homeHpRef = useRef(homeHp);
+  /** バトル開始直前の敵スナップショット（準備フェーズへ巻き戻す際に使う） */
+  const initialEnemiesRef = useRef<Enemy[]>([]);
+  const hitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { homeHpRef.current = homeHp; }, [homeHp]);
+
+  /** ダイアログ表示中はバトルを一時停止 */
+  const isPaused = pendingBack === "toPrep";
 
   const nearbyPlaces = useNearbyPOI(currentPosition);
 
-  // カウントダウン
-  const prepRemaining = useCountdown(900, gamePhase === "prep");
-  const battleRemaining = useCountdown(300, gamePhase === "battle");
+  // ── カウントダウン ────────────────────────────────────────────
+  const battleRemaining = useCountdown(300, gamePhase === "battle" && !isPaused, battleKey);
 
-  // 敵ポーリング
-  useEnemyPolling(gamePhase === "battle", setEnemies);
+  // ── コンビニバフ検出 ──────────────────────────────────────────
+  useEffect(() => {
+    if (!currentPosition) return;
+    const nearConbini = nearbyPlaces.some(
+      (p) => p.kind === "convenience-store" && p.distance <= CONBINI_BUFF_RADIUS_M,
+    );
+    setAttackBuff(nearConbini);
+  }, [currentPosition, nearbyPlaces]);
 
-  const selectedPlace = useMemo(
-    () => nearbyPlaces.find((place) => place.id === selectedMarker) ?? null,
-    [nearbyPlaces, selectedMarker],
+  // ── バトルシミュレーション ────────────────────────────────────
+  const handleSimUpdate = useCallback(
+    (newEnemies: Enemy[], homeDamage: number, events: CombatEvent[]) => {
+      setEnemies(newEnemies);
+      if (homeDamage > 0) {
+        setHomeHp(Math.max(0, homeHpRef.current - homeDamage));
+      }
+
+      const newHitIds = new Set<string>();
+
+      for (const ev of events) {
+        if (ev.type === "enemy_hit") newHitIds.add(ev.enemyId);
+      }
+
+      if (newHitIds.size > 0) {
+        setHitEnemyIds(newHitIds);
+        if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
+        hitTimerRef.current = setTimeout(
+          () => setHitEnemyIds(new Set()),
+          500,
+        );
+      }
+
+    },
+    [setEnemies, setHomeHp],
   );
 
-  // DEV時は敵配信が空でも、マップ上のp5敵描画を4体並べて確認できるようにする。
-  const enemiesForMap = useMemo<Enemy[]>(() => {
-    if (enemies.length > 0 || !import.meta.env.DEV) {
-      return enemies;
-    }
+  useGameSimulation({
+    isActive: gamePhase === "battle" && !isPaused,
+    homeCoords,
+    structures,
+    enemies,
+    attackBuff,
+    onUpdate: handleSimUpdate,
+  });
 
-    const center = currentPosition ?? homeCoords ?? { lat: 35.6812, lng: 139.7671 };
-    const offsets = [
-      { lat: 0.00045, lng: -0.00045 },
-      { lat: 0.00035, lng: 0.00035 },
-      { lat: -0.00025, lng: -0.0002 },
-      { lat: -0.0004, lng: 0.00045 },
-    ];
+  // ── 敵ルート (道路 or 直線フォールバック) ────────────────────
+  const enemyRoutes = useMemo(() => {
+    if (enemyDisplayRoutes.length > 0) return enemyDisplayRoutes;
+    if (!homeCoords || enemySpawnPoints.length === 0) return [];
+    return enemySpawnPoints.map((pt) => ({ waypoints: [pt, homeCoords] }));
+  }, [enemyDisplayRoutes, enemySpawnPoints, homeCoords]);
 
-    return offsets.map((offset, index) => ({
-      id: `dev-enemy-${index + 1}`,
-      lat: center.lat + offset.lat,
-      lng: center.lng + offset.lng,
-      hp: 100,
-      maxHp: 100,
-      speed: 1,
-      state: "moving",
-    }));
-  }, [currentPosition, enemies, homeCoords]);
-
-  const canCheckIn =
-    selectedPlace !== null &&
-    selectedPlace.distance <= CHECK_IN_RADIUS_M &&
-    gamePhase === "prep";
-
-  const isCheckedIn = selectedMarker
-    ? checkedInPlaceIds.includes(selectedMarker)
-    : false;
-
-  const isStructureDeployed = selectedMarker
-    ? deployedStructurePlaceIds.includes(selectedMarker)
-    : false;
-
-  const canPlaceStructure =
-    isCheckedIn &&
-    bitcoin >= STRUCTURE_COST &&
-    !isStructureDeployed &&
-    gamePhase === "prep" &&
-    selectedPlace !== null;
-
-  // waiting に戻ったらローカル state をリセット（Fix #6）
+  // ── waiting → リセット ─────────────────────────────────────────
   useEffect(() => {
     if (gamePhase === "waiting") {
-      setCheckedInPlaceIds([]);
-      setDeployedStructurePlaceIds([]);
       setSelectedMarker(null);
-      setPlacementPreview(null);
+      setEnemySpawnPoints([]);
+      setEnemyDisplayRoutes([]);
+      setAttackBuff(false);
+      setGameResult(null);
+      setHitEnemyIds(new Set());
       gameEndCalledRef.current = false;
     }
   }, [gamePhase]);
 
-  // バトルフェーズ終了条件の監視（Fix #3: 二重呼び出し防止）
+  // ── バトル終了判定 ────────────────────────────────────────────
   useEffect(() => {
     if (gamePhase !== "battle" || gameEndCalledRef.current) return;
 
     if (homeHp <= 0) {
       gameEndCalledRef.current = true;
-      postGameEnd().catch(console.error).finally(() => setGamePhase("result"));
+      setGameResult("lose");
+      setGamePhase("result");
       return;
     }
 
     if (enemies.length > 0 && enemies.every((e) => e.state === "dead")) {
       gameEndCalledRef.current = true;
-      postGameClear().catch(console.error).finally(() => setGamePhase("result"));
+      setGameResult("win");
+      setGamePhase("result");
     }
   }, [homeHp, enemies, gamePhase, setGamePhase]);
 
-  // バトルタイムアップ処理（Fix #5）
+  // ── バトルタイムアップ ────────────────────────────────────────
   useEffect(() => {
-    if (gamePhase === "battle" && battleRemaining === 0 && !gameEndCalledRef.current) {
+    if (
+      gamePhase === "battle" &&
+      battleRemaining === 0 &&
+      !gameEndCalledRef.current
+    ) {
       gameEndCalledRef.current = true;
-      postGameEnd().catch(console.error).finally(() => setGamePhase("result"));
+      // 制限時間内に拠点が生き残っていれば勝利
+      setGameResult(homeHp > 0 ? "win" : "lose");
+      setGamePhase("result");
     }
-  }, [battleRemaining, gamePhase, setGamePhase]);
+  }, [battleRemaining, gamePhase, homeHp, setGamePhase]);
 
-  const handleSimulateMovement = () => {
-    setViewport((current) => ({
-      ...current,
-      x: current.x + 1,
-      y: current.y + 1,
-    }));
-  };
+  // ── ハンドラー ────────────────────────────────────────────────
 
-  // ゲーム開始ボタン (waiting → prep)
+  // waiting → prep（postGameBase で本拠地を設定）
   const handleStartGame = async () => {
     if (!currentPosition || isStartingGame) return;
     setIsStartingGame(true);
     try {
-      await postGameBase(currentPosition.lat, currentPosition.lng);
+      await postGameBase(currentPosition.lat, currentPosition.lng).catch(
+        console.error,
+      );
+
+      const base = currentPosition;
+      const testEnemies = spawnTestEnemies(base);
+      setHomeCoords(base);
+      setEnemies(testEnemies);
+      setEnemySpawnPoints(testEnemies.map((e) => ({ lat: e.lat, lng: e.lng })));
       setGamePhase("prep");
-      setHomeCoords(currentPosition);
-    } catch (e) {
-      console.error(e);
+
+      // 道路ルートをバックグラウンドで取得
+      setIsFetchingRoutes(true);
+      Promise.all(
+        testEnemies.map((e) => fetchRoadRoute({ lat: e.lat, lng: e.lng }, base)),
+      )
+        .then((routes) => {
+          setEnemyDisplayRoutes(routes.map((waypoints) => ({ waypoints })));
+          setEnemies(
+            testEnemies.map((enemy, i) => ({
+              ...enemy,
+              route: routes[i],
+              routeIndex: 0,
+            })),
+          );
+        })
+        .catch(console.error)
+        .finally(() => setIsFetchingRoutes(false));
     } finally {
       setIsStartingGame(false);
     }
   };
 
-  // チェックイン
-  const handleCheckIn = () => {
-    if (!selectedMarker || !canCheckIn || isCheckedIn) return;
-    setCheckedInPlaceIds((current) => [...current, selectedMarker]);
-    addBitcoin(CHECKIN_REWARD);
-  };
+  const handlePlaceStructure = async (type: "turret" | "wall") => {
+    if (!currentPosition || isPlacingStructure) return;
+    const cost = type === "turret" ? TURRET_COST : WALL_COST;
+    if (bitcoin < cost) return;
 
-  // 防衛拠点設置
-  const handlePlaceStructure = async () => {
-    if (!selectedPlace || !canPlaceStructure || isPlacingStructure) return;
     setIsPlacingStructure(true);
     try {
-      const res = await postStructure("turret", selectedPlace.lat, selectedPlace.lng);
       const newStructure: Structure = {
-        id: res.id,
-        lat: res.lat,
-        lng: res.lng,
-        kind: res.type,
-        hp: res.hp,
-        maxHp: res.max_hp,
-        rangeM: res.range_m,
+        id: `local-${Date.now()}`,
+        lat: currentPosition.lat,
+        lng: currentPosition.lng,
+        kind: type,
+        hp: type === "turret" ? 120 : 200,
+        maxHp: type === "turret" ? 120 : 200,
+        rangeM: type === "turret" ? 80 : 35,
       };
+
+      try {
+        const res = await postStructure(type, currentPosition.lat, currentPosition.lng);
+        newStructure.id = res.id;
+      } catch {
+        /* フロントエンドのみで管理 */
+      }
+
       setStructures((prev) => [...prev, newStructure]);
-      spendBitcoin(STRUCTURE_COST);
-      setDeployedStructurePlaceIds((current) => [...current, selectedPlace.id]);
-      setPlacementPreview({
-        kind: "electric_shop_tower",
-        x: Math.round(viewport.x + 4),
-        y: Math.round(viewport.y + 6),
-      });
-    } catch (e) {
-      console.error(e);
+      spendBitcoin(cost);
     } finally {
       setIsPlacingStructure(false);
     }
   };
 
-  // ゲームスタート (prep → battle)
-  const handleStartBattle = async () => {
+  const handleStartBattle = () => {
     if (isStartingBattle) return;
     setIsStartingBattle(true);
-    try {
-      await postGameStart(3);
-      setGamePhase("battle");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsStartingBattle(false);
-    }
+    // バトル開始時に敵の初期状態を保存（戻る際のリセット用）
+    initialEnemiesRef.current = enemies.map((e) => ({ ...e }));
+    setGamePhase("battle");
+    setIsStartingBattle(false);
   };
 
+  /** battle → prep: 敵を初期配置に戻す。構造物はそのまま */
+  const handleReturnToPrep = () => {
+    setBattleKey((k) => k + 1); // タイマーリセット
+    if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
+    gameEndCalledRef.current = false;
+    setHitEnemyIds(new Set());
+
+    setEnemies(
+      initialEnemiesRef.current.map((e) => ({
+        ...e,
+        hp: e.maxHp,
+        state: "spawned" as const,
+        routeIndex: 0,
+      })),
+    );
+    setHomeHp(100);
+    setGamePhase("prep");
+  };
+
+  const handleDeleteStructure = (id: string) => {
+    setStructures((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  /** prep → waiting: 敵・スポーン情報・構造物をすべてクリア */
+  const handleReturnToWaiting = () => {
+    setBattleKey((k) => k + 1); // 次回バトル用にタイマーリセット
+    setEnemies([]);
+    setEnemySpawnPoints([]);
+    setEnemyDisplayRoutes([]);
+
+    setStructures([]);
+    setHomeCoords(null);
+    setGamePhase("waiting");
+  };
+
+  const handlePlayAgain = () => {
+    setBattleKey((k) => k + 1); // タイマーリセット
+    if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
+    resetGame();
+    setGameResult(null);
+
+    setEnemyDisplayRoutes([]);
+    setEnemySpawnPoints([]);
+
+    setAttackBuff(false);
+    setHitEnemyIds(new Set());
+    gameEndCalledRef.current = false;
+  };
+
+  // ── ユーティリティ ─────────────────────────────────────────────
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = String(seconds % 60).padStart(2, "0");
     return `${m}:${s}`;
   };
 
+  const currentPositionLabel = (() => {
+    if (currentPosition) {
+      const coords = `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`;
+      return isSpoofing ? `${coords} (偽装中)` : coords;
+    }
+    if (isSpoofing) return "地図をタップして現在地を設定";
+    if (gpsError) return "位置情報取得エラー";
+    return "GPS 取得中…";
+  })();
+
+  // ── レンダー ──────────────────────────────────────────────────
   return (
     <section className="content-panel stack-layout map-screen">
+      {/* PC 用ヘッダ */}
       <div className="panel-header">
         <div>
           <p className="eyebrow">
-            {gamePhase === "waiting" && "地図画面（待機中）"}
-            {gamePhase === "prep" && "地図画面（準備フェーズ）"}
-            {gamePhase === "battle" && "地図画面（バトル中）"}
-            {gamePhase === "result" && "地図画面（結果）"}
+            {gamePhase === "waiting" && "待機中"}
+            {gamePhase === "prep" && "準備フェーズ"}
+            {gamePhase === "battle" && "バトル中"}
+            {gamePhase === "result" && "ゲーム終了"}
           </p>
           <h2>
             {gamePhase === "waiting" && "ゲームを始める"}
-            {gamePhase === "prep" && `準備中 ${formatTime(prepRemaining)}`}
-            {gamePhase === "battle" && `バトル中 ${formatTime(battleRemaining)}`}
-            {gamePhase === "result" && "ゲーム終了"}
+            {gamePhase === "prep" && "準備中"}
+            {gamePhase === "battle" &&
+              `バトル中 ${formatTime(battleRemaining)}`}
+            {gamePhase === "result" &&
+              (gameResult === "win" ? "VICTORY!" : "DEFEAT...")}
           </h2>
           <p className="muted">
             BTC: {bitcoin} / 家HP: {homeHp} / 100
@@ -263,159 +367,75 @@ export function MapPage() {
           >
             設定
           </button>
-          <button
-            type="button"
-            className={isSpoofing ? "ghost-button active" : "ghost-button"}
-            onClick={() => setIsSpoofing((prev) => !prev)}
-            title="地図をクリックして現在地を変更するモード"
-          >
-            {isSpoofing ? "偽装 ON" : "偽装 OFF"}
-          </button>
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={handleSimulateMovement}
-          >
-            歩行ティック
-          </button>
         </div>
       </div>
 
-      {gamePhase === "waiting" ? (
-        <article className="feature-card">
-          <strong>ゲーム開始</strong>
-          <span>現在地を「家（本拠地）」として設定してゲームを開始します。</span>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={handleStartGame}
-            disabled={!currentPosition || isStartingGame}
-          >
-            {isStartingGame ? "開始中..." : "ゲーム開始"}
-          </button>
-        </article>
-      ) : null}
+      {/* 右下フローティング CTA（waiting のみ） */}
+      {gamePhase === "waiting" && (
+        <button
+          type="button"
+          className="primary-button floating-action"
+          onClick={handleStartGame}
+          disabled={!currentPosition || isStartingGame}
+        >
+          {isStartingGame ? "開始中..." : "ゲームを始める"}
+        </button>
+      )}
 
-      {gamePhase === "prep" ? (
-        <>
-          <article className="feature-card">
-            <strong>準備フェーズ</strong>
-            <span>
-              残り時間: {formatTime(prepRemaining)} / BTC: {bitcoin}
-            </span>
-            <span className="muted">
-              家の座標: {homeCoords ? `${homeCoords.lat.toFixed(5)}, ${homeCoords.lng.toFixed(5)}` : "未設定"}
-            </span>
-          </article>
-
-          {selectedPlace ? (
-            <article className="feature-card">
-              <strong>{selectedPlace.name}</strong>
-              <span>距離: {selectedPlace.distance}m</span>
-              {!isCheckedIn ? (
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={handleCheckIn}
-                  disabled={!canCheckIn}
-                >
-                  {canCheckIn ? `チェックイン (+${CHECKIN_REWARD} BTC)` : "近づいてからチェックイン"}
-                </button>
-              ) : (
-                <>
-                  <span className="muted">チェックイン済み</span>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={handlePlaceStructure}
-                    disabled={!canPlaceStructure || isPlacingStructure}
-                  >
-                    {isPlacingStructure
-                      ? "設置中..."
-                      : isStructureDeployed
-                        ? "設置済み"
-                        : bitcoin < STRUCTURE_COST
-                          ? `BTC不足 (必要: ${STRUCTURE_COST})`
-                          : `防衛拠点設置 (-${STRUCTURE_COST} BTC)`}
-                  </button>
-                </>
-              )}
-            </article>
-          ) : (
-            <article className="feature-card">
-              <strong>店を選択</strong>
-              <span>地図上の店マーカーをタップして選択してください。</span>
-            </article>
-          )}
-        </>
-      ) : null}
-
-      {gamePhase === "battle" ? (
-        <article className="feature-card">
-          <strong>バトルフェーズ</strong>
-          <span>残り時間: {formatTime(battleRemaining)}</span>
-          <span>家HP: {homeHp} / 100</span>
-          <span>拠点数: {structures.length}</span>
-          {structures.map((s) => (
-            <span key={s.id} className="muted">
-              {s.kind}: HP {s.hp}/{s.maxHp}
-            </span>
-          ))}
-        </article>
-      ) : null}
-
+      {/* 地図 */}
       <MapView
         viewport={viewport}
         nearbyPlaces={nearbyPlaces}
         selectedMarker={selectedMarker}
-        placementPreview={placementPreview}
+        placementPreview={null}
         onSelectMarker={setSelectedMarker}
-        deployedStructures={deployedStructurePlaceIds}
+        deployedStructures={[]}
         currentPosition={currentPosition}
         isSpoofing={isSpoofing}
         onSpoofedLocationSet={setSpoofedPosition}
         structures={structures}
-        enemies={enemiesForMap}
+        enemies={enemies}
         homeCoords={homeCoords}
+        gamePhase={gamePhase}
+        bitcoin={bitcoin}
+        homeHp={homeHp}
+        battleRemaining={battleRemaining}
+        currentPositionLabel={currentPositionLabel}
+        enemyRoutes={enemyRoutes}
+        onStartBattle={gamePhase === "prep" ? handleStartBattle : undefined}
+        isStartingBattle={isStartingBattle}
+        hasBuff={attackBuff}
+        gameResult={gameResult}
+        hitEnemyIds={hitEnemyIds}
+        onPlayAgain={handlePlayAgain}
+        onReturnToPrep={gamePhase === "battle" ? handleReturnToPrep : undefined}
+        onReturnToWaiting={gamePhase === "prep" ? handleReturnToWaiting : undefined}
+        onDeleteStructure={handleDeleteStructure}
+        onPlaceStructure={gamePhase === "prep" ? handlePlaceStructure : undefined}
+        isPlacingStructure={isPlacingStructure}
+        onOpenSettings={() => setShowSettings(true)}
+        pendingBack={pendingBack}
+        onPendingBackChange={setPendingBack}
+        isFetchingRoutes={isFetchingRoutes}
       />
 
-      {gamePhase === "prep" ? (
-        <BottomActionPanel
-          actions={[
-            {
-              label: "ゲームスタート",
-              emphasis: "primary",
-              onClick: handleStartBattle,
-            },
-          ]}
-        />
-      ) : null}
-
       {gpsError && !isSpoofing && (
-        <article className="feature-card" style={{ borderLeft: "3px solid #ef4444" }}>
+        <article
+          className="feature-card"
+          style={{ borderLeft: "3px solid #ef4444" }}
+        >
           <strong>位置情報エラー</strong>
           <span>{gpsError}</span>
           <span className="muted">
-            Chromeのアドレスバー横の鍵アイコン →「位置情報」→「許可」に変更してページを再読み込みしてください。
-            または「偽装 ON」にして地図をクリックすることで位置を手動設定できます。
+            Chrome のアドレスバー横の鍵アイコン →「位置情報」→「許可」に変更してください。
           </span>
         </article>
       )}
 
-      <p className="muted">
-        {currentPosition
-          ? `現在地: ${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}${isSpoofing ? " (偽装中)" : ""}`
-          : isSpoofing
-            ? "地図をクリックして現在地を設定してください"
-            : gpsError
-              ? "位置情報が取得できていません（上記のエラーを確認）"
-              : "GPS 取得中…"}
-      </p>
-
-      {showSettings ? (
+      {showSettings && (
         <div className="settings-modal" role="dialog" aria-modal="true">
           <article className="settings-card">
-            <div className="panel-header compact">
+            <div className="settings-header">
               <div>
                 <p className="eyebrow">設定</p>
                 <h3>ユーザ情報</h3>
@@ -434,21 +454,36 @@ export function MapPage() {
               <span className="summary-label">レベル</span>
               <strong>{currentUser?.level ?? 1}</strong>
             </div>
-            <div className="auth-actions">
+            <div className="action-group">
               <button
                 type="button"
                 className="primary-button"
-                onClick={() => {
-                  signOut();
-                  setShowSettings(false);
-                }}
+                onClick={() => { signOut(); setShowSettings(false); }}
               >
                 ログアウト
               </button>
             </div>
+            {import.meta.env.DEV && (
+              <div>
+                <p className="eyebrow" style={{ marginBottom: 8 }}>
+                  開発者ツール
+                </p>
+                <div className="dev-tools">
+                  <button
+                    type="button"
+                    className={
+                      isSpoofing ? "ghost-button active" : "ghost-button"
+                    }
+                    onClick={() => setIsSpoofing((p) => !p)}
+                  >
+                    {isSpoofing ? "偽装 ON" : "偽装 OFF"}
+                  </button>
+                </div>
+              </div>
+            )}
           </article>
         </div>
-      ) : null}
+      )}
     </section>
   );
 }
