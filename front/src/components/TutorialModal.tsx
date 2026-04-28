@@ -3,17 +3,17 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 const slides = [
   {
-    image: "/tutorial/説明1.png",
+    image: "/tutorial/explanation1.png",
     title: "ステージを選ぼう",
     description: "ゲームを始めるとステージ選択画面が表示されます。ステージ1を選んでスタートしましょう。",
   },
   {
-    image: "/tutorial/説明2.png",
+    image: "/tutorial/explanation2.png",
     title: "防衛施設を設置しよう",
     description: "準備フェーズでは、現在地にタレット（攻撃）や壁（減速）を設置できます。BTCを使って拠点を守る配置を考えよう。",
   },
   {
-    image: "/tutorial/説明3.png",
+    image: "/tutorial/explanation3.png",
     title: "敵を撃退しよう",
     description: "ゲームスタートで敵が侵攻してきます。施設が自動で攻撃するので、拠点のHPがなくなる前に全敵を倒せ！",
   },
