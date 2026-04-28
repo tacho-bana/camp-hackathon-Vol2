@@ -128,7 +128,7 @@ export function MapView({
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
-  const [actualZoom, setActualZoom] = useState(13);
+  const [, setActualZoom] = useState(13);
   const [isNorthLocked, setIsNorthLocked] = useState(false);
   const [pendingDeleteStructure, setPendingDeleteStructure] = useState<Structure | null>(null);
   const [pendingPlacement, setPendingPlacement] = useState<"turret" | "wall" | null>(null);

@@ -43,6 +43,7 @@ export function MapPage() {
     structures,
     enemies,
     setGamePhase,
+    addBitcoin,
     spendBitcoin,
     setHomeCoords,
     setStructures,
@@ -289,6 +290,10 @@ export function MapPage() {
   };
 
   const handleDeleteStructure = (id: string) => {
+    const target = structures.find((s) => s.id === id);
+    if (target) {
+      addBitcoin(target.kind === "turret" ? TURRET_COST : WALL_COST);
+    }
     setStructures((prev) => prev.filter((s) => s.id !== id));
   };
 
