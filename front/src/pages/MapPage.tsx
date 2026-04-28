@@ -529,24 +529,18 @@ export function MapPage() {
                 ログアウト
               </button>
             </div>
-            {import.meta.env.DEV && (
-              <div>
-                <p className="eyebrow" style={{ marginBottom: 8 }}>
-                  開発者ツール
-                </p>
-                <div className="dev-tools">
-                  <button
-                    type="button"
-                    className={
-                      isSpoofing ? "ghost-button active" : "ghost-button"
-                    }
-                    onClick={() => setIsSpoofing((p) => !p)}
-                  >
-                    {isSpoofing ? "偽装 ON" : "偽装 OFF"}
-                  </button>
-                </div>
+            <div>
+              <p className="eyebrow" style={{ marginBottom: 8 }}>位置情報</p>
+              <div className="dev-tools">
+                <button
+                  type="button"
+                  className={isSpoofing ? "ghost-button active" : "ghost-button"}
+                  onClick={() => setIsSpoofing((p) => !p)}
+                >
+                  {isSpoofing ? "偽装モード ON" : "偽装モード OFF"}
+                </button>
               </div>
-            )}
+            </div>
           </article>
         </div>
       )}
