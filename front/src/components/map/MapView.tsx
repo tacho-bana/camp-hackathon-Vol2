@@ -10,11 +10,8 @@ import type {
   PlacementPreview,
   Structure,
 } from "../../types/game";
-import { BaseMarker } from "./BaseMarker";
-import { EnemyLayer } from "./EnemyLayer";
 import { EnemySprite } from "./EnemySprite";
 import { PlaceMarker } from "./PlaceMarker";
-import { StructureLayer } from "./StructureLayer";
 
 const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -116,6 +113,7 @@ export function MapView({
   const nearbyPlaceMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const structureMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const hasAutocenteredRef = useRef(false);
+  const currentPositionRef = useRef(currentPosition);
   const savedBearingRef = useRef(-12);
   const savedPitchRef = useRef(35);
   const [enemyOverlayItems, setEnemyOverlayItems] = useState<EnemyOverlayItem[]>([]);
@@ -138,6 +136,11 @@ export function MapView({
       zoom: 13,
       pitch: 35,
       bearing: -12,
+      scrollZoom: false,
+      boxZoom: false,
+      doubleClickZoom: false,
+      touchZoomRotate: false,
+      dragRotate: false,
     });
 
     map.addControl(
@@ -455,8 +458,17 @@ export function MapView({
     };
   }, [enemies, mapStatus]);
 
+  // currentPosition を ref に同期
+  useEffect(() => { currentPositionRef.current = currentPosition; }, [currentPosition]);
+
   // ── 集計 ─────────────────────────────────────────────────────
   const deadCount = enemies.filter((e) => e.state === "dead").length;
+
+  const handleFlyToCurrentPosition = useCallback(() => {
+    const pos = currentPositionRef.current;
+    if (!mapRef.current || !pos) return;
+    mapRef.current.flyTo({ center: [pos.lng, pos.lat], zoom: 15, duration: 800 });
+  }, []);
 
   // ── レンダー ──────────────────────────────────────────────────
   const handleCompassToggle = useCallback(() => {
@@ -506,6 +518,33 @@ export function MapView({
           N
         </button>
 
+        {/* 現在地に戻るボタン */}
+        <button
+          type="button"
+          aria-label="現在地に戻る"
+          onClick={handleFlyToCurrentPosition}
+          style={{
+            position: "absolute",
+            top: 113,
+            right: 10,
+            zIndex: 3,
+            width: 29,
+            height: 29,
+            borderRadius: 4,
+            border: "none",
+            background: "rgba(15,23,42,0.9)",
+            color: "#d7e0ea",
+            cursor: "pointer",
+            fontSize: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0 0 1px rgba(148,163,184,0.2)",
+          }}
+        >
+          ◎
+        </button>
+
         <div className="enemy-overlay-layer" aria-hidden="true">
           {enemyOverlayItems.map((item) => (
             <div
@@ -526,12 +565,7 @@ export function MapView({
         </div>
 
         <div className="map-layer-stack">
-          <BaseMarker
-            label="拠点コア"
-            active={selectedMarker === "base-core"}
-          />
-          <StructureLayer structures={structures} />
-          <EnemyLayer enemies={enemies} />
+
           <div className="map-place-list">
             {nearbyPlaces.map((place) => (
               <PlaceMarker
@@ -759,9 +793,7 @@ export function MapView({
         {/* レガシー: Mapbox 非使用時のフォールバック */}
         {mapStatus !== "ready" && (
           <div className="map-layer-stack">
-            <BaseMarker label="拠点コア" active={selectedMarker === "base-core"} />
-            <StructureLayer structures={structures} />
-            <EnemyLayer enemies={enemies} />
+  
             <div className="map-place-list">
               {nearbyPlaces.map((place) => (
                 <PlaceMarker
