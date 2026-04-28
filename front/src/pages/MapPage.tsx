@@ -100,6 +100,26 @@ export function MapPage() {
     }));
   }, [currentPosition, enemies, homeCoords]);
 
+  // DEV時は構造物が空でも、タワー描画を初期プレビューで確認できるようにする。
+  const structuresForMap = useMemo<Structure[]>(() => {
+    if (structures.length > 0 || !import.meta.env.DEV) {
+      return structures;
+    }
+
+    const center = currentPosition ?? homeCoords ?? { lat: 35.6812, lng: 139.7671 };
+    return [
+      {
+        id: "dev-structure-1",
+        lat: center.lat - 0.00012,
+        lng: center.lng + 0.00018,
+        kind: "turret",
+        hp: 120,
+        maxHp: 120,
+        rangeM: 220,
+      },
+    ];
+  }, [currentPosition, homeCoords, structures]);
+
   const canCheckIn =
     selectedPlace !== null &&
     selectedPlace.distance <= CHECK_IN_RADIUS_M &&
@@ -374,7 +394,7 @@ export function MapPage() {
         currentPosition={currentPosition}
         isSpoofing={isSpoofing}
         onSpoofedLocationSet={setSpoofedPosition}
-        structures={structures}
+        structures={structuresForMap}
         enemies={enemiesForMap}
         homeCoords={homeCoords}
       />
