@@ -75,7 +75,6 @@ export function MapPage() {
   const [isPlacingStructure, setIsPlacingStructure] = useState(false);
   const [isFetchingRoutes, setIsFetchingRoutes] = useState(false);
   const [gameResult, setGameResult] = useState<"win" | "lose" | null>(null);
-  const [battleLog, setBattleLog] = useState<string[]>([]);
   const [hitEnemyIds, setHitEnemyIds] = useState<Set<string>>(new Set());
   const gameEndCalledRef = useRef(false);
   const homeHpRef = useRef(homeHp);
@@ -107,21 +106,9 @@ export function MapPage() {
       }
 
       const newHitIds = new Set<string>();
-      const logLines: string[] = [];
 
       for (const ev of events) {
-        switch (ev.type) {
-          case "enemy_hit":
-            newHitIds.add(ev.enemyId);
-            logLines.push(`🎯 タレット命中  -${ev.damage} HP`);
-            break;
-          case "enemy_dead":
-            logLines.push("💀 敵を撃破！");
-            break;
-          case "base_damaged":
-            logLines.push(`🏠 拠点ダメージ  -${ev.damage}`);
-            break;
-        }
+        if (ev.type === "enemy_hit") newHitIds.add(ev.enemyId);
       }
 
       if (newHitIds.size > 0) {
@@ -133,9 +120,6 @@ export function MapPage() {
         );
       }
 
-      if (logLines.length > 0) {
-        setBattleLog((prev) => [...logLines, ...prev].slice(0, 10));
-      }
     },
     [setEnemies, setHomeHp],
   );
@@ -165,7 +149,6 @@ export function MapPage() {
       setSelectedStructureType(null);
       setAttackBuff(false);
       setGameResult(null);
-      setBattleLog([]);
       setHitEnemyIds(new Set());
       gameEndCalledRef.current = false;
     }
@@ -553,20 +536,6 @@ export function MapPage() {
               )}
             </article>
 
-            {battleLog.length > 0 && (
-              <article className="feature-card battle-log-card">
-                <strong>バトルログ</strong>
-                {battleLog.map((entry, i) => (
-                  <span
-                    key={i}
-                    className="muted"
-                    style={{ fontSize: "0.83rem" }}
-                  >
-                    {entry}
-                  </span>
-                ))}
-              </article>
-            )}
           </>
         )}
       </div>
