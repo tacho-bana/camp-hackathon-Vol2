@@ -1,183 +1,199 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BottomActionPanel } from "../components/ui/BottomActionPanel";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapView } from "../components/map/MapView";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useNearbyPOI } from "../hooks/useNearbyPOI";
 import { useCountdown } from "../hooks/useCountdown";
-import { useEnemyPolling } from "../hooks/useEnemyPolling";
+import { useGameSimulation, type CombatEvent } from "../hooks/useGameSimulation";
 import { useAppState } from "../state/AppStateContext";
-import { postGameBase, postGameStart, postGameClear, postGameEnd } from "../api/game";
+import { postGameBase } from "../api/game";
 import { postStructure } from "../api/structures";
-import { navigateTo } from "../routing/navigation";
-import type {
-  Enemy,
-  LatLng,
-  MapViewport,
-  PlacementPreview,
-  Structure,
-} from "../types/game";
+import { fetchRoadRoute } from "../utils/roadRoute";
+import type { Enemy, LatLng, MapViewport, Structure } from "../types/game";
 
-const CHECK_IN_RADIUS_M = 50;
-const STRUCTURE_COST = 150;
-const CHECKIN_REWARD = 30;
+// ── 定数 ──────────────────────────────────────────────────────────
+const TURRET_COST = 100;
+const WALL_COST = 50;
+const CONBINI_BUFF_RADIUS_M = 50;
+
+function spawnTestEnemies(base: LatLng): Enemy[] {
+  const offsets: Array<{ lat: number; lng: number }> = [
+    { lat: 0.0027, lng: 0.0005 },
+    { lat: -0.0008, lng: 0.0028 },
+    { lat: -0.0020, lng: -0.0018 },
+  ];
+  return offsets.map((offset, i) => ({
+    id: `test-enemy-${i + 1}`,
+    lat: base.lat + offset.lat,
+    lng: base.lng + offset.lng,
+    hp: 100,
+    maxHp: 100,
+    speed: 2.5,
+    state: "spawned" as const,
+  }));
+}
+// ─────────────────────────────────────────────────────────────────
 
 export function MapPage() {
   const {
     currentUser,
     gamePhase,
-    difficulty,
     bitcoin,
     homeCoords,
     homeHp,
     structures,
     enemies,
     setGamePhase,
-    setDifficulty,
-    addBitcoin,
     spendBitcoin,
     setHomeCoords,
     setStructures,
     setEnemies,
+    setHomeHp,
     signOut,
+    resetGame,
   } = useAppState();
 
+  // ── 位置情報 ─────────────────────────────────────────────────────
   const { position: gpsPosition, error: gpsError } = useGeolocation();
   const [isSpoofing, setIsSpoofing] = useState(import.meta.env.DEV);
   const [spoofedPosition, setSpoofedPosition] = useState<LatLng | null>(null);
   const currentPosition = isSpoofing ? spoofedPosition : gpsPosition;
 
-  const [viewport, setViewport] = useState<MapViewport>({
-    x: 24,
-    y: 12,
-    zoom: 1.4,
-  });
+  // ── ゲームローカル状態 ──────────────────────────────────────────
+  const [viewport] = useState<MapViewport>({ x: 24, y: 12, zoom: 1.4 });
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
-  const [checkedInPlaceIds, setCheckedInPlaceIds] = useState<string[]>([]);
-  const [deployedStructurePlaceIds, setDeployedStructurePlaceIds] = useState<string[]>([]);
-  const [placementPreview, setPlacementPreview] =
-    useState<PlacementPreview | null>(null);
+  const [enemySpawnPoints, setEnemySpawnPoints] = useState<LatLng[]>([]);
+  const [enemyDisplayRoutes, setEnemyDisplayRoutes] = useState<
+    Array<{ waypoints: LatLng[] }>
+  >([]);
+  const [selectedStructureType, setSelectedStructureType] = useState<
+    "turret" | "wall" | null
+  >(null);
+  const [attackBuff, setAttackBuff] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPlacingStructure, setIsPlacingStructure] = useState(false);
+  const [isFetchingRoutes, setIsFetchingRoutes] = useState(false);
+  const [gameResult, setGameResult] = useState<"win" | "lose" | null>(null);
+  const [hitEnemyIds, setHitEnemyIds] = useState<Set<string>>(new Set());
+  /** 戻る確認ダイアログの状態（MapView から引き上げ） */
+  const [pendingBack, setPendingBack] = useState<"toWaiting" | "toPrep" | null>(null);
+  /** タイマーリセット用キー（新規ゲーム開始時にインクリメント） */
+  const [battleKey, setBattleKey] = useState(0);
   const gameEndCalledRef = useRef(false);
+  const homeHpRef = useRef(homeHp);
+  /** バトル開始直前の敵スナップショット（準備フェーズへ巻き戻す際に使う） */
+  const initialEnemiesRef = useRef<Enemy[]>([]);
+  const hitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { homeHpRef.current = homeHp; }, [homeHp]);
+
+  /** ダイアログ表示中はバトルを一時停止 */
+  const isPaused = pendingBack === "toPrep";
 
   const nearbyPlaces = useNearbyPOI(currentPosition);
 
-  // カウントダウン
-  const prepRemaining = useCountdown(900, gamePhase === "prep");
-  const battleRemaining = useCountdown(300, gamePhase === "battle");
+  // ── カウントダウン ────────────────────────────────────────────
+  const battleRemaining = useCountdown(300, gamePhase === "battle" && !isPaused, battleKey);
 
-  // 敵ポーリング
-  useEnemyPolling(gamePhase === "battle", setEnemies);
+  // ── コンビニバフ検出 ──────────────────────────────────────────
+  useEffect(() => {
+    if (!currentPosition) return;
+    const nearConbini = nearbyPlaces.some(
+      (p) => p.kind === "convenience-store" && p.distance <= CONBINI_BUFF_RADIUS_M,
+    );
+    setAttackBuff(nearConbini);
+  }, [currentPosition, nearbyPlaces]);
 
-  const selectedPlace = useMemo(
-    () => nearbyPlaces.find((place) => place.id === selectedMarker) ?? null,
-    [nearbyPlaces, selectedMarker],
+  // ── バトルシミュレーション ────────────────────────────────────
+  const handleSimUpdate = useCallback(
+    (newEnemies: Enemy[], homeDamage: number, events: CombatEvent[]) => {
+      setEnemies(newEnemies);
+      if (homeDamage > 0) {
+        setHomeHp(Math.max(0, homeHpRef.current - homeDamage));
+      }
+
+      const newHitIds = new Set<string>();
+
+      for (const ev of events) {
+        if (ev.type === "enemy_hit") newHitIds.add(ev.enemyId);
+      }
+
+      if (newHitIds.size > 0) {
+        setHitEnemyIds(newHitIds);
+        if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
+        hitTimerRef.current = setTimeout(
+          () => setHitEnemyIds(new Set()),
+          500,
+        );
+      }
+
+    },
+    [setEnemies, setHomeHp],
   );
 
-  // DEV時は敵配信が空でも、マップ上のp5敵描画を4体並べて確認できるようにする。
-  const enemiesForMap = useMemo<Enemy[]>(() => {
-    if (enemies.length > 0 || !import.meta.env.DEV) {
-      return enemies;
-    }
+  useGameSimulation({
+    isActive: gamePhase === "battle" && !isPaused,
+    homeCoords,
+    structures,
+    enemies,
+    attackBuff,
+    onUpdate: handleSimUpdate,
+  });
 
-    const center = currentPosition ?? homeCoords ?? { lat: 35.6812, lng: 139.7671 };
-    const offsets = [
-      { lat: 0.00045, lng: -0.00045 },
-      { lat: 0.00035, lng: 0.00035 },
-      { lat: -0.00025, lng: -0.0002 },
-      { lat: -0.0004, lng: 0.00045 },
-    ];
+  // ── 敵ルート (道路 or 直線フォールバック) ────────────────────
+  const enemyRoutes = useMemo(() => {
+    if (enemyDisplayRoutes.length > 0) return enemyDisplayRoutes;
+    if (!homeCoords || enemySpawnPoints.length === 0) return [];
+    return enemySpawnPoints.map((pt) => ({ waypoints: [pt, homeCoords] }));
+  }, [enemyDisplayRoutes, enemySpawnPoints, homeCoords]);
 
-    return offsets.map((offset, index) => ({
-      id: `dev-enemy-${index + 1}`,
-      lat: center.lat + offset.lat,
-      lng: center.lng + offset.lng,
-      hp: 100,
-      maxHp: 100,
-      speed: 1,
-      state: "moving",
-    }));
-  }, [currentPosition, enemies, homeCoords]);
-
-  const canCheckIn =
-    selectedPlace !== null &&
-    selectedPlace.distance <= CHECK_IN_RADIUS_M &&
-    gamePhase === "prep";
-
-  const isCheckedIn = selectedMarker
-    ? checkedInPlaceIds.includes(selectedMarker)
-    : false;
-
-  const isStructureDeployed = selectedMarker
-    ? deployedStructurePlaceIds.includes(selectedMarker)
-    : false;
-
-  const canPlaceStructure =
-    isCheckedIn &&
-    bitcoin >= STRUCTURE_COST &&
-    !isStructureDeployed &&
-    gamePhase === "prep" &&
-    selectedPlace !== null;
-
-  // waiting に戻ったらローカル state をリセット
+  // ── waiting → リセット ─────────────────────────────────────────
   useEffect(() => {
     if (gamePhase === "waiting") {
-      setCheckedInPlaceIds([]);
-      setDeployedStructurePlaceIds([]);
       setSelectedMarker(null);
-      setPlacementPreview(null);
+      setEnemySpawnPoints([]);
+      setEnemyDisplayRoutes([]);
+      setSelectedStructureType(null);
+      setAttackBuff(false);
+      setGameResult(null);
+      setHitEnemyIds(new Set());
       gameEndCalledRef.current = false;
     }
   }, [gamePhase]);
 
-  // バトルフェーズ終了条件の監視（二重呼び出し防止）
+  // ── バトル終了判定 ────────────────────────────────────────────
   useEffect(() => {
     if (gamePhase !== "battle" || gameEndCalledRef.current) return;
 
     if (homeHp <= 0) {
       gameEndCalledRef.current = true;
-      postGameEnd().catch(console.error).finally(() => setGamePhase("result")); // ハッカソン仕様: API失敗時も強制遷移
+      setGameResult("lose");
+      setGamePhase("result");
       return;
     }
 
     if (enemies.length > 0 && enemies.every((e) => e.state === "dead")) {
       gameEndCalledRef.current = true;
-      postGameClear().catch(console.error).finally(() => setGamePhase("result")); // ハッカソン仕様: API失敗時も強制遷移
+      setGameResult("win");
+      setGamePhase("result");
     }
   }, [homeHp, enemies, gamePhase, setGamePhase]);
 
-  // バトルタイムアップ処理
+  // ── バトルタイムアップ ────────────────────────────────────────
   useEffect(() => {
-    if (gamePhase === "battle" && battleRemaining === 0 && !gameEndCalledRef.current) {
+    if (
+      gamePhase === "battle" &&
+      battleRemaining === 0 &&
+      !gameEndCalledRef.current
+    ) {
       gameEndCalledRef.current = true;
-      postGameEnd().catch(console.error).finally(() => setGamePhase("result")); // ハッカソン仕様: API失敗時も強制遷移
+      // 制限時間内に拠点が生き残っていれば勝利
+      setGameResult(homeHp > 0 ? "win" : "lose");
+      setGamePhase("result");
     }
-  }, [battleRemaining, gamePhase, setGamePhase]);
+  }, [battleRemaining, gamePhase, homeHp, setGamePhase]);
 
-  // 準備タイムアップ処理
-  useEffect(() => {
-    if (gamePhase === "prep" && prepRemaining === 0) {
-      handleStartBattle();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prepRemaining, gamePhase]);
-
-  // result になったら結果画面へ遷移
-  useEffect(() => {
-    if (gamePhase === "result") {
-      navigateTo("/report");
-    }
-  }, [gamePhase]);
-
-  const handleSimulateMovement = () => {
-    setViewport((current) => ({
-      ...current,
-      x: current.x + 1,
-      y: current.y + 1,
-    }));
-  };
+  // ── ハンドラー ────────────────────────────────────────────────
 
   // waiting → difficulty（位置情報は不要）
   const handleGoToDifficulty = () => {
@@ -189,67 +205,133 @@ export function MapPage() {
     if (!currentPosition || isStartingGame) return;
     setIsStartingGame(true);
     try {
-      await postGameBase(currentPosition.lat, currentPosition.lng);
+      await postGameBase(currentPosition.lat, currentPosition.lng).catch(
+        console.error,
+      );
+
+      const base = currentPosition;
+      const testEnemies = spawnTestEnemies(base);
+      setHomeCoords(base);
+      setEnemies(testEnemies);
+      setEnemySpawnPoints(testEnemies.map((e) => ({ lat: e.lat, lng: e.lng })));
       setGamePhase("prep");
-      setHomeCoords(currentPosition);
-    } catch (e) {
-      console.error(e);
+
+      // 道路ルートをバックグラウンドで取得
+      setIsFetchingRoutes(true);
+      Promise.all(
+        testEnemies.map((e) => fetchRoadRoute({ lat: e.lat, lng: e.lng }, base)),
+      )
+        .then((routes) => {
+          setEnemyDisplayRoutes(routes.map((waypoints) => ({ waypoints })));
+          setEnemies(
+            testEnemies.map((enemy, i) => ({
+              ...enemy,
+              route: routes[i],
+              routeIndex: 0,
+            })),
+          );
+        })
+        .catch(console.error)
+        .finally(() => setIsFetchingRoutes(false));
     } finally {
       setIsStartingGame(false);
     }
   };
 
-  // チェックイン
-  const handleCheckIn = () => {
-    if (!selectedMarker || !canCheckIn || isCheckedIn) return;
-    setCheckedInPlaceIds((current) => [...current, selectedMarker]);
-    addBitcoin(CHECKIN_REWARD);
-  };
+  const handlePlaceStructureAtPosition = async () => {
+    if (!currentPosition || !selectedStructureType || isPlacingStructure) return;
+    const cost = selectedStructureType === "turret" ? TURRET_COST : WALL_COST;
+    if (bitcoin < cost) return;
 
-  // 防衛拠点設置
-  const handlePlaceStructure = async () => {
-    if (!selectedPlace || !canPlaceStructure || isPlacingStructure) return;
     setIsPlacingStructure(true);
     try {
-      const res = await postStructure("turret", selectedPlace.lat, selectedPlace.lng);
       const newStructure: Structure = {
-        id: res.id,
-        lat: res.lat,
-        lng: res.lng,
-        kind: res.type,
-        hp: res.hp,
-        maxHp: res.max_hp,
-        rangeM: res.range_m,
+        id: `local-${Date.now()}`,
+        lat: currentPosition.lat,
+        lng: currentPosition.lng,
+        kind: selectedStructureType,
+        hp: selectedStructureType === "turret" ? 120 : 200,
+        maxHp: selectedStructureType === "turret" ? 120 : 200,
+        rangeM: selectedStructureType === "turret" ? 80 : 35,
       };
+
+      try {
+        const res = await postStructure(
+          selectedStructureType,
+          currentPosition.lat,
+          currentPosition.lng,
+        );
+        newStructure.id = res.id;
+      } catch {
+        /* フロントエンドのみで管理 */
+      }
+
       setStructures((prev) => [...prev, newStructure]);
-      spendBitcoin(STRUCTURE_COST);
-      setDeployedStructurePlaceIds((current) => [...current, selectedPlace.id]);
-      setPlacementPreview({
-        kind: "electric_shop_tower",
-        x: Math.round(viewport.x + 4),
-        y: Math.round(viewport.y + 6),
-      });
-    } catch (e) {
-      console.error(e);
+      spendBitcoin(cost);
     } finally {
       setIsPlacingStructure(false);
     }
   };
 
-  // prep → battle
-  const handleStartBattle = async () => {
+  const handleStartBattle = () => {
     if (isStartingBattle) return;
     setIsStartingBattle(true);
-    try {
-      await postGameStart(difficulty);
-      setGamePhase("battle");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsStartingBattle(false);
-    }
+    // バトル開始時に敵の初期状態を保存（戻る際のリセット用）
+    initialEnemiesRef.current = enemies.map((e) => ({ ...e }));
+    setGamePhase("battle");
+    setIsStartingBattle(false);
   };
 
+  /** battle → prep: 敵を初期配置に戻す。構造物はそのまま */
+  const handleReturnToPrep = () => {
+    setBattleKey((k) => k + 1); // タイマーリセット
+    if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
+    gameEndCalledRef.current = false;
+    setHitEnemyIds(new Set());
+
+    setEnemies(
+      initialEnemiesRef.current.map((e) => ({
+        ...e,
+        hp: e.maxHp,
+        state: "spawned" as const,
+        routeIndex: 0,
+      })),
+    );
+    setHomeHp(100);
+    setGamePhase("prep");
+  };
+
+  const handleDeleteStructure = (id: string) => {
+    setStructures((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  /** prep → waiting: 敵・スポーン情報・構造物をすべてクリア */
+  const handleReturnToWaiting = () => {
+    setBattleKey((k) => k + 1); // 次回バトル用にタイマーリセット
+    setEnemies([]);
+    setEnemySpawnPoints([]);
+    setEnemyDisplayRoutes([]);
+    setSelectedStructureType(null);
+    setStructures([]);
+    setHomeCoords(null);
+    setGamePhase("waiting");
+  };
+
+  const handlePlayAgain = () => {
+    setBattleKey((k) => k + 1); // タイマーリセット
+    if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
+    resetGame();
+    setGameResult(null);
+
+    setEnemyDisplayRoutes([]);
+    setEnemySpawnPoints([]);
+    setSelectedStructureType(null);
+    setAttackBuff(false);
+    setHitEnemyIds(new Set());
+    gameEndCalledRef.current = false;
+  };
+
+  // ── ユーティリティ ─────────────────────────────────────────────
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = String(seconds % 60).padStart(2, "0");
@@ -266,24 +348,32 @@ export function MapPage() {
     return "GPS 取得中…";
   })();
 
+  const aliveEnemyCount = enemies.filter((e) => e.state !== "dead").length;
+  const canPlaceHere =
+    !!currentPosition &&
+    !!selectedStructureType &&
+    bitcoin >= (selectedStructureType === "turret" ? TURRET_COST : WALL_COST) &&
+    !isPlacingStructure;
+
+  // ── レンダー ──────────────────────────────────────────────────
   return (
     <section className="content-panel stack-layout map-screen">
-      {/* PC 用ヘッダ（スマホでは CSS で非表示） */}
+      {/* PC 用ヘッダ */}
       <div className="panel-header">
         <div>
           <p className="eyebrow">
-            {gamePhase === "waiting" && "地図画面（待機中）"}
-            {gamePhase === "difficulty" && "地図画面（難易度選択）"}
-            {gamePhase === "prep" && "地図画面（準備フェーズ）"}
-            {gamePhase === "battle" && "地図画面（バトル中）"}
-            {gamePhase === "result" && "地図画面（結果）"}
+            {gamePhase === "waiting" && "待機中"}
+            {gamePhase === "prep" && "準備フェーズ"}
+            {gamePhase === "battle" && "バトル中"}
+            {gamePhase === "result" && "ゲーム終了"}
           </p>
           <h2>
             {gamePhase === "waiting" && "ゲームを始める"}
-            {gamePhase === "difficulty" && "難易度を選択"}
-            {gamePhase === "prep" && `準備中 ${formatTime(prepRemaining)}`}
-            {gamePhase === "battle" && `バトル中 ${formatTime(battleRemaining)}`}
-            {gamePhase === "result" && "ゲーム終了"}
+            {gamePhase === "prep" && "準備中"}
+            {gamePhase === "battle" &&
+              `バトル中 ${formatTime(battleRemaining)}`}
+            {gamePhase === "result" &&
+              (gameResult === "win" ? "VICTORY!" : "DEFEAT...")}
           </h2>
           <p className="muted">
             BTC: {bitcoin} / 家HP: {homeHp} / 100
@@ -300,9 +390,8 @@ export function MapPage() {
         </div>
       </div>
 
-      {/* フェーズ別 UI カード群（スマホ: ボトムシート固定、PC: display:contents で通常フロー） */}
+      {/* スマホ: ボトムシート */}
       <div className="mobile-bottom-sheet">
-        {/* スマホ専用：シート上部の設定ボタン */}
         <div className="mobile-sheet-header">
           <button
             type="button"
@@ -312,112 +401,162 @@ export function MapPage() {
             ⚙ 設定
           </button>
         </div>
+
+        {/* ── 待機中 ── */}
         {gamePhase === "waiting" && (
           <article className="feature-card">
             <strong>ゲーム開始</strong>
-            <span>現在地を「家（本拠地）」として設定してゲームを開始します。</span>
+            <span>
+              現在地を「家（本拠地）」として設定し、敵3体が出現します。防衛施設を配置してからゲームスタートボタンを押してください。
+            </span>
             {!currentPosition && (
               <span className="muted">
-                GPS を取得中です。偽装モードで地図をタップしても開始できます。
+                GPS 取得中、または偽装モードで地図をタップして設定してください。
               </span>
             )}
           </article>
         )}
 
-        {gamePhase === "difficulty" && (
-          <article className="feature-card">
-            <strong>難易度選択</strong>
-            <span>バトルフェーズの敵の強さを選択してください。</span>
-            <div className="choice-grid compact">
-              {([1, 2, 3] as const).map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  className={difficulty === level ? "choice-chip active" : "choice-chip"}
-                  onClick={() => setDifficulty(level)}
-                >
-                  <strong>難易度 {level}</strong>
-                  <small>
-                    {level === 1 ? "やさしい" : level === 2 ? "ふつう" : "むずかしい"}
-                  </small>
-                </button>
-              ))}
-            </div>
-          </article>
-        )}
-
+        {/* ── 準備フェーズ ── */}
         {gamePhase === "prep" && (
           <>
             <article className="feature-card">
               <strong>準備フェーズ</strong>
-              <span>残り時間: {formatTime(prepRemaining)} / BTC: {bitcoin}</span>
-              <span className="muted">
-                家の座標: {homeCoords
-                  ? `${homeCoords.lat.toFixed(5)}, ${homeCoords.lng.toFixed(5)}`
-                  : "未設定"}
-              </span>
+              <span>BTC: {bitcoin}</span>
+              {isFetchingRoutes && (
+                <span className="muted">🗺 道路ルートを取得中...</span>
+              )}
+              {!isFetchingRoutes && enemyDisplayRoutes.length > 0 && (
+                <span className="muted">🗺 道路ルート表示中</span>
+              )}
+              {attackBuff && (
+                <div className="buff-banner">
+                  ⚡ コンビニバフ発動中！タレット攻撃力 ×1.5
+                </div>
+              )}
             </article>
 
-            {selectedPlace ? (
+            <article className="feature-card">
+              <strong>防衛施設を設置</strong>
+              <span className="muted">施設種別を選んで現在地に設置します</span>
+              <div className="choice-grid compact">
+                <button
+                  type="button"
+                  className={
+                    selectedStructureType === "turret"
+                      ? "choice-chip active"
+                      : "choice-chip"
+                  }
+                  onClick={() =>
+                    setSelectedStructureType((p) =>
+                      p === "turret" ? null : "turret",
+                    )
+                  }
+                >
+                  <strong>🔫 タレット</strong>
+                  <small>射程80m・攻撃型 -{TURRET_COST} BTC</small>
+                </button>
+                <button
+                  type="button"
+                  className={
+                    selectedStructureType === "wall"
+                      ? "choice-chip active"
+                      : "choice-chip"
+                  }
+                  onClick={() =>
+                    setSelectedStructureType((p) =>
+                      p === "wall" ? null : "wall",
+                    )
+                  }
+                >
+                  <strong>🧱 壁</strong>
+                  <small>射程35m・足止め型 -{WALL_COST} BTC</small>
+                </button>
+              </div>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={handlePlaceStructureAtPosition}
+                disabled={!canPlaceHere}
+              >
+                {isPlacingStructure
+                  ? "設置中..."
+                  : !selectedStructureType
+                    ? "施設種別を選択"
+                    : !currentPosition
+                      ? "GPS 取得中..."
+                      : bitcoin <
+                          (selectedStructureType === "turret"
+                            ? TURRET_COST
+                            : WALL_COST)
+                        ? "BTC 不足"
+                        : `現在地に設置 (-${
+                            selectedStructureType === "turret"
+                              ? TURRET_COST
+                              : WALL_COST
+                          } BTC)`}
+              </button>
+              {structures.length > 0 && (
+                <span className="muted">設置済み: {structures.length} 基</span>
+              )}
+            </article>
+
+            {nearbyPlaces.some((p) => p.kind === "convenience-store") && (
               <article className="feature-card">
-                <strong>{selectedPlace.name}</strong>
-                <span>距離: {selectedPlace.distance}m</span>
-                {!isCheckedIn ? (
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={handleCheckIn}
-                    disabled={!canCheckIn}
-                  >
-                    {canCheckIn
-                      ? `チェックイン (+${CHECKIN_REWARD} BTC)`
-                      : "近づいてからチェックイン"}
-                  </button>
-                ) : (
-                  <>
-                    <span className="muted">チェックイン済み</span>
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={handlePlaceStructure}
-                      disabled={!canPlaceStructure || isPlacingStructure}
-                    >
-                      {isPlacingStructure
-                        ? "設置中..."
-                        : isStructureDeployed
-                          ? "設置済み"
-                          : bitcoin < STRUCTURE_COST
-                            ? `BTC不足 (必要: ${STRUCTURE_COST})`
-                            : `防衛拠点設置 (-${STRUCTURE_COST} BTC)`}
-                    </button>
-                  </>
-                )}
-              </article>
-            ) : (
-              <article className="feature-card">
-                <strong>店を選択</strong>
-                <span>地図上の店マーカーをタップして選択してください。</span>
+                <strong>近くのコンビニ</strong>
+                {nearbyPlaces
+                  .filter((p) => p.kind === "convenience-store")
+                  .slice(0, 3)
+                  .map((p) => (
+                    <span key={p.id} className="muted">
+                      {p.name} — {p.distance}m
+                      {p.distance <= CONBINI_BUFF_RADIUS_M && (
+                        <span style={{ color: "#fbbf24", marginLeft: 6 }}>
+                          ⚡ バフ発動中
+                        </span>
+                      )}
+                    </span>
+                  ))}
               </article>
             )}
           </>
         )}
 
+        {/* ── バトルフェーズ ── */}
         {gamePhase === "battle" && (
-          <article className="feature-card">
-            <strong>バトルフェーズ</strong>
-            <span>残り時間: {formatTime(battleRemaining)}</span>
-            <span>家HP: {homeHp} / 100</span>
-            <span>拠点数: {structures.length}</span>
-            {structures.map((s) => (
-              <span key={s.id} className="muted">
-                {s.kind}: HP {s.hp}/{s.maxHp}
+          <>
+            <article className="feature-card">
+              <strong>バトルフェーズ</strong>
+              <span>残り: {formatTime(battleRemaining)}</span>
+              <span>
+                家 HP:{" "}
+                <strong
+                  style={{
+                    color:
+                      homeHp > 60
+                        ? "#86efac"
+                        : homeHp > 30
+                          ? "#fbbf24"
+                          : "#f87171",
+                  }}
+                >
+                  {homeHp}
+                </strong>
+                {" / 100"}
               </span>
-            ))}
-          </article>
+              <span>
+                敵: {aliveEnemyCount} / {enemies.length} 体
+              </span>
+              {attackBuff && (
+                <div className="buff-banner">⚡ コンビニバフ発動中</div>
+              )}
+            </article>
+
+          </>
         )}
       </div>
 
-      {/* 右下フローティング CTA */}
+      {/* 右下フローティング CTA（waiting のみ） */}
       {gamePhase === "waiting" && (
         <button
           type="button"
@@ -439,53 +578,55 @@ export function MapPage() {
         </button>
       )}
 
+      {/* 地図 */}
       <MapView
         viewport={viewport}
         nearbyPlaces={nearbyPlaces}
         selectedMarker={selectedMarker}
-        placementPreview={placementPreview}
+        placementPreview={null}
         onSelectMarker={setSelectedMarker}
-        deployedStructures={deployedStructurePlaceIds}
+        deployedStructures={[]}
         currentPosition={currentPosition}
         isSpoofing={isSpoofing}
         onSpoofedLocationSet={setSpoofedPosition}
         structures={structures}
-        enemies={enemiesForMap}
+        enemies={enemies}
         homeCoords={homeCoords}
         gamePhase={gamePhase}
         bitcoin={bitcoin}
         homeHp={homeHp}
-        prepRemaining={prepRemaining}
         battleRemaining={battleRemaining}
         currentPositionLabel={currentPositionLabel}
+        enemyRoutes={enemyRoutes}
+        onStartBattle={gamePhase === "prep" ? handleStartBattle : undefined}
+        isStartingBattle={isStartingBattle}
+        hasBuff={attackBuff}
+        gameResult={gameResult}
+        hitEnemyIds={hitEnemyIds}
+        onPlayAgain={handlePlayAgain}
+        onReturnToPrep={gamePhase === "battle" ? handleReturnToPrep : undefined}
+        onReturnToWaiting={gamePhase === "prep" ? handleReturnToWaiting : undefined}
+        onDeleteStructure={handleDeleteStructure}
+        pendingBack={pendingBack}
+        onPendingBackChange={setPendingBack}
       />
 
-      {gamePhase === "prep" && (
-        <BottomActionPanel
-          actions={[
-            {
-              label: isStartingBattle ? "開始中..." : "ゲームスタート",
-              emphasis: "primary",
-              onClick: handleStartBattle,
-            },
-          ]}
-        />
-      )}
-
       {gpsError && !isSpoofing && (
-        <article className="feature-card" style={{ borderLeft: "3px solid #ef4444" }}>
+        <article
+          className="feature-card"
+          style={{ borderLeft: "3px solid #ef4444" }}
+        >
           <strong>位置情報エラー</strong>
           <span>{gpsError}</span>
           <span className="muted">
-            Chromeのアドレスバー横の鍵アイコン →「位置情報」→「許可」に変更してページを再読み込みしてください。
-            または設定から「偽装 ON」にして地図をタップすることで位置を手動設定できます。
+            Chrome のアドレスバー横の鍵アイコン →「位置情報」→「許可」に変更してください。
           </span>
         </article>
       )}
 
       <p className="muted">{currentPositionLabel}</p>
 
-      {showSettings ? (
+      {showSettings && (
         <div className="settings-modal" role="dialog" aria-modal="true">
           <article className="settings-card">
             <div className="settings-header">
@@ -511,38 +652,32 @@ export function MapPage() {
               <button
                 type="button"
                 className="primary-button"
-                onClick={() => {
-                  signOut();
-                  setShowSettings(false);
-                }}
+                onClick={() => { signOut(); setShowSettings(false); }}
               >
                 ログアウト
               </button>
             </div>
             {import.meta.env.DEV && (
               <div>
-                <p className="eyebrow" style={{ marginBottom: 8 }}>開発者ツール</p>
+                <p className="eyebrow" style={{ marginBottom: 8 }}>
+                  開発者ツール
+                </p>
                 <div className="dev-tools">
                   <button
                     type="button"
-                    className={isSpoofing ? "ghost-button active" : "ghost-button"}
-                    onClick={() => setIsSpoofing((prev) => !prev)}
+                    className={
+                      isSpoofing ? "ghost-button active" : "ghost-button"
+                    }
+                    onClick={() => setIsSpoofing((p) => !p)}
                   >
                     {isSpoofing ? "偽装 ON" : "偽装 OFF"}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    onClick={handleSimulateMovement}
-                  >
-                    歩行ティック
                   </button>
                 </div>
               </div>
             )}
           </article>
         </div>
-      ) : null}
+      )}
     </section>
   );
 }
