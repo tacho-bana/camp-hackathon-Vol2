@@ -87,7 +87,20 @@ export function MapPage() {
   /** バトル開始直前の敵スナップショット（準備フェーズへ巻き戻す際に使う） */
   const initialEnemiesRef = useRef<Enemy[]>([]);
   const hitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevHomeHpRef = useRef(homeHp);
+  const [baseDamageFlash, setBaseDamageFlash] = useState(false);
   useEffect(() => { homeHpRef.current = homeHp; }, [homeHp]);
+
+  // 拠点HPが減ったらフラッシュ演出
+  useEffect(() => {
+    if (homeHp < prevHomeHpRef.current && gamePhase === "battle") {
+      setBaseDamageFlash(true);
+      const t = setTimeout(() => setBaseDamageFlash(false), 600);
+      prevHomeHpRef.current = homeHp;
+      return () => clearTimeout(t);
+    }
+    prevHomeHpRef.current = homeHp;
+  }, [homeHp, gamePhase]);
 
   /** ダイアログ表示中はバトルを一時停止 */
   const isPaused = pendingBack === "toPrep";
@@ -504,6 +517,11 @@ export function MapPage() {
             Chrome のアドレスバー横の鍵アイコン →「位置情報」→「許可」に変更してください。
           </span>
         </article>
+      )}
+
+      {/* 拠点ダメージフラッシュ */}
+      {baseDamageFlash && (
+        <div className="base-damage-flash" aria-hidden="true" />
       )}
 
       {showTutorial && (
