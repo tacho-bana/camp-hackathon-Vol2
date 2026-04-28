@@ -3,7 +3,7 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 const slides = [
   {
-    image: "/tutorial/explanation1.png",
+    image: "/tutorial/explanation.png",
     title: "ステージを選ぼう",
     description: "ゲームを始めるとステージ選択画面が表示されます。ステージ1を選んでスタートしましょう。",
   },
