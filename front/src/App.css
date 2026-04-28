@@ -721,6 +721,119 @@
   cursor: not-allowed;
 }
 
+/* ── 戻るボタン（アイコンのみ・地図オーバーレイ） ───────────── */
+.map-back-btn {
+  position: absolute;
+  left: 16px;
+  bottom: 28px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(148, 163, 184, 0.35);
+  background: rgba(10, 16, 30, 0.78);
+  backdrop-filter: blur(10px);
+  color: #cbd5e1;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.map-back-btn:hover {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: rgba(148, 163, 184, 0.6);
+  color: #f1f5f9;
+}
+
+.map-back-btn--battle {
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #fbbf24;
+}
+
+.map-back-btn--battle:hover {
+  background: rgba(30, 20, 0, 0.88);
+  border-color: rgba(251, 191, 36, 0.8);
+  color: #fde68a;
+}
+
+@media (max-width: 768px) {
+  .map-back-btn {
+    bottom: calc(56dvh + 52px);
+  }
+}
+
+/* ── 戻る確認ダイアログ ──────────────────────────────────────── */
+.map-back-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 120ms ease;
+}
+
+.map-back-confirm-card {
+  background: rgba(10, 16, 30, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  padding: 28px 28px 22px;
+  max-width: 320px;
+  width: 90%;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.map-back-confirm-msg {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.map-back-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.map-back-confirm-btn {
+  padding: 9px 22px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: opacity 100ms ease;
+}
+
+.map-back-confirm-btn:hover {
+  opacity: 0.85;
+}
+
+.map-back-confirm-btn--cancel {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #94a3b8;
+}
+
+.map-back-confirm-btn--ok {
+  background: #ef4444;
+  color: #fff;
+}
+
 /* ── コンビニバフインジケーター ──────────────────────────────── */
 .map-buff-indicator {
   position: absolute;

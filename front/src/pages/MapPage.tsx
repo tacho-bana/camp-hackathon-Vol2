@@ -79,6 +79,8 @@ export function MapPage() {
   const [hitEnemyIds, setHitEnemyIds] = useState<Set<string>>(new Set());
   const gameEndCalledRef = useRef(false);
   const homeHpRef = useRef(homeHp);
+  /** バトル開始直前の敵スナップショット（準備フェーズへ巻き戻す際に使う） */
+  const initialEnemiesRef = useRef<Enemy[]>([]);
   const hitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { homeHpRef.current = homeHp; }, [homeHp]);
 
@@ -287,8 +289,39 @@ export function MapPage() {
   const handleStartBattle = () => {
     if (isStartingBattle) return;
     setIsStartingBattle(true);
+    // バトル開始時に敵の初期状態を保存（戻る際のリセット用）
+    initialEnemiesRef.current = enemies.map((e) => ({ ...e }));
     setGamePhase("battle");
     setIsStartingBattle(false);
+  };
+
+  /** battle → prep: 敵を初期配置に戻す。構造物はそのまま */
+  const handleReturnToPrep = () => {
+    if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
+    gameEndCalledRef.current = false;
+    setHitEnemyIds(new Set());
+    setBattleLog([]);
+    setEnemies(
+      initialEnemiesRef.current.map((e) => ({
+        ...e,
+        hp: e.maxHp,
+        state: "spawned" as const,
+        routeIndex: 0,
+      })),
+    );
+    setHomeHp(100);
+    setGamePhase("prep");
+  };
+
+  /** prep → waiting: 敵・スポーン情報・構造物をすべてクリア */
+  const handleReturnToWaiting = () => {
+    setEnemies([]);
+    setEnemySpawnPoints([]);
+    setEnemyDisplayRoutes([]);
+    setSelectedStructureType(null);
+    setStructures([]);
+    setHomeCoords(null);
+    setGamePhase("waiting");
   };
 
   const handlePlayAgain = () => {
@@ -582,6 +615,8 @@ export function MapPage() {
         gameResult={gameResult}
         hitEnemyIds={hitEnemyIds}
         onPlayAgain={handlePlayAgain}
+        onReturnToPrep={gamePhase === "battle" ? handleReturnToPrep : undefined}
+        onReturnToWaiting={gamePhase === "prep" ? handleReturnToWaiting : undefined}
       />
 
       {gpsError && !isSpoofing && (

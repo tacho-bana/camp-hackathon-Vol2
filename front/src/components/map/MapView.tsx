@@ -74,6 +74,8 @@ export function MapView({
   gameResult,
   hitEnemyIds,
   onPlayAgain,
+  onReturnToPrep,
+  onReturnToWaiting,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -100,6 +102,8 @@ export function MapView({
   gameResult: "win" | "lose" | null;
   hitEnemyIds: Set<string>;
   onPlayAgain: () => void;
+  onReturnToPrep?: () => void;
+  onReturnToWaiting?: () => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -112,6 +116,7 @@ export function MapView({
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
+  const [pendingBack, setPendingBack] = useState<"toWaiting" | "toPrep" | null>(null);
 
   // ── 地図初期化 ────────────────────────────────────────────────
   useEffect(() => {
@@ -527,6 +532,61 @@ export function MapView({
           >
             {isStartingBattle ? "開始中..." : "⚔ ゲームスタート"}
           </button>
+        )}
+
+        {/* 戻るボタン（アイコンのみ） */}
+        {gamePhase === "prep" && onReturnToWaiting && (
+          <button
+            type="button"
+            className="map-back-btn"
+            aria-label="開始前に戻る"
+            onClick={() => setPendingBack("toWaiting")}
+          >
+            ←
+          </button>
+        )}
+        {gamePhase === "battle" && onReturnToPrep && (
+          <button
+            type="button"
+            className="map-back-btn map-back-btn--battle"
+            aria-label="準備に戻る"
+            onClick={() => setPendingBack("toPrep")}
+          >
+            ⏸
+          </button>
+        )}
+
+        {/* 確認ダイアログ */}
+        {pendingBack && (
+          <div className="map-back-confirm-overlay">
+            <div className="map-back-confirm-card">
+              <p className="map-back-confirm-msg">
+                {pendingBack === "toPrep"
+                  ? "準備フェーズに戻りますか？\n敵は初期位置に戻ります。施設はそのまま残ります。"
+                  : "ゲーム開始前に戻りますか？\n施設はそのまま残ります。"}
+              </p>
+              <div className="map-back-confirm-actions">
+                <button
+                  type="button"
+                  className="map-back-confirm-btn map-back-confirm-btn--cancel"
+                  onClick={() => setPendingBack(null)}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className="map-back-confirm-btn map-back-confirm-btn--ok"
+                  onClick={() => {
+                    setPendingBack(null);
+                    if (pendingBack === "toPrep") onReturnToPrep?.();
+                    else onReturnToWaiting?.();
+                  }}
+                >
+                  戻る
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* 勝敗リザルトオーバーレイ */}
