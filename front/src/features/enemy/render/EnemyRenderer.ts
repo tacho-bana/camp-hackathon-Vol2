@@ -16,16 +16,18 @@ export function drawEnemy(s: p5, enemy: EnemyModel, frame: EnemyFrame): void {
   s.pop();
 
   s.push();
-  s.translate(enemy.x, enemy.y + frame.bobY);
-  s.scale(enemy.facing, 1);
+  s.translate(enemy.x, enemy.y);
 
+  // 体力バーは振動（bobY）の影響を受けないように固定
+  drawHpBar(s, enemy);
+
+  // 体（アニメーション部分）のみ振動と向きを適用
   s.push();
-
+  s.translate(0, frame.bobY);
+  s.scale(enemy.facing, 1);
   drawEnemyBodyByKind(s, enemy);
-
   s.pop();
 
-  drawHpBar(s, enemy);
   s.pop();
 }
 
