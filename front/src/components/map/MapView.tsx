@@ -116,21 +116,15 @@ export function MapView({
   const nearbyPlaceMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const structureMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const hasAutocenteredRef = useRef(false);
-  const [enemyOverlayItems, setEnemyOverlayItems] = useState<EnemyOverlayItem[]>([]);
-  const [mapStatus, setMapStatus] = useState<
-    "loading" | "ready" | "missing-token" | "error"
-  >(mapboxToken ? "loading" : "missing-token");
-  const [pendingDeleteStructure, setPendingDeleteStructure] = useState<Structure | null>(null);
   const savedBearingRef = useRef(-12);
   const savedPitchRef = useRef(35);
-  const [enemyOverlayItems, setEnemyOverlayItems] = useState<EnemyOverlayItem[]>(
-    [],
-  );
+  const [enemyOverlayItems, setEnemyOverlayItems] = useState<EnemyOverlayItem[]>([]);
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
   const [actualZoom, setActualZoom] = useState(13);
   const [isNorthLocked, setIsNorthLocked] = useState(false);
+  const [pendingDeleteStructure, setPendingDeleteStructure] = useState<Structure | null>(null);
 
   // ── 地図初期化 ────────────────────────────────────────────────
   useEffect(() => {
@@ -683,7 +677,7 @@ export function MapView({
               <p className="map-back-confirm-msg">
                 {pendingBack === "toPrep"
                   ? "準備フェーズに戻りますか？\n敵は初期位置に戻ります。施設はそのまま残ります。"
-                  : "ゲーム開始前に戻りますか？\n施設はそのまま残ります。"}
+                  : "ゲーム開始前に戻りますか？\n施設は削除されます。"}
               </p>
               <div className="map-back-confirm-actions">
                 <button
