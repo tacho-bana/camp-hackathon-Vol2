@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7  # 1 week
+    auth_cookie_name: str = "access_token"
+    auth_cookie_secure: bool = False
+    auth_cookie_samesite: str = "lax"
+    csrf_cookie_name: str = "csrf_token"
+    session_cleanup_interval_minutes: int = 60
 
     app_env: str = "development"
     app_host: str = "0.0.0.0"
