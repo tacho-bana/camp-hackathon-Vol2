@@ -87,7 +87,6 @@ export function MapPage() {
   const nearbyPlaces = useNearbyPOI(currentPosition);
 
   // ── カウントダウン ────────────────────────────────────────────
-  const prepRemaining = useCountdown(900, gamePhase === "prep");
   const battleRemaining = useCountdown(300, gamePhase === "battle");
 
   // ── コンビニバフ検出 ──────────────────────────────────────────
@@ -203,14 +202,6 @@ export function MapPage() {
       setGamePhase("result");
     }
   }, [battleRemaining, gamePhase, homeHp, setGamePhase]);
-
-  // ── 準備タイムアップ ──────────────────────────────────────────
-  useEffect(() => {
-    if (gamePhase === "prep" && prepRemaining === 0) {
-      handleStartBattle();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prepRemaining, gamePhase]);
 
   // ── ハンドラー ────────────────────────────────────────────────
 
@@ -379,7 +370,7 @@ export function MapPage() {
           </p>
           <h2>
             {gamePhase === "waiting" && "ゲームを始める"}
-            {gamePhase === "prep" && `準備中 ${formatTime(prepRemaining)}`}
+            {gamePhase === "prep" && "準備中"}
             {gamePhase === "battle" &&
               `バトル中 ${formatTime(battleRemaining)}`}
             {gamePhase === "result" &&
@@ -432,7 +423,7 @@ export function MapPage() {
           <>
             <article className="feature-card">
               <strong>準備フェーズ</strong>
-              <span>残り: {formatTime(prepRemaining)} / BTC: {bitcoin}</span>
+              <span>BTC: {bitcoin}</span>
               {isFetchingRoutes && (
                 <span className="muted">🗺 道路ルートを取得中...</span>
               )}
@@ -609,7 +600,6 @@ export function MapPage() {
         gamePhase={gamePhase}
         bitcoin={bitcoin}
         homeHp={homeHp}
-        prepRemaining={prepRemaining}
         battleRemaining={battleRemaining}
         currentPositionLabel={currentPositionLabel}
         enemyRoutes={enemyRoutes}

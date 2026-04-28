@@ -64,7 +64,6 @@ export function MapView({
   gamePhase,
   bitcoin,
   homeHp,
-  prepRemaining,
   battleRemaining,
   currentPositionLabel,
   enemyRoutes,
@@ -93,7 +92,6 @@ export function MapView({
   gamePhase: GamePhase;
   bitcoin: number;
   homeHp: number;
-  prepRemaining: number;
   battleRemaining: number;
   currentPositionLabel: string;
   enemyRoutes: EnemyRoute[];
@@ -482,8 +480,7 @@ export function MapView({
           <div className="map-status-card">
             <strong>
               {gamePhase === "waiting" && "待機中"}
-              {gamePhase === "prep" &&
-                `準備 ${Math.floor(prepRemaining / 60)}:${String(prepRemaining % 60).padStart(2, "0")}`}
+              {gamePhase === "prep" && "準備中"}
               {gamePhase === "battle" &&
                 `⚔ ${Math.floor(battleRemaining / 60)}:${String(battleRemaining % 60).padStart(2, "0")}`}
               {gamePhase === "result" &&
