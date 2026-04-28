@@ -566,28 +566,6 @@ export function MapView({
           ))}
         </div>
 
-        <div className="map-overlay map-overlay-top">
-          <span>
-            表示範囲: {viewport.x}, {viewport.y}
-          </span>
-          <span>ズーム: {actualZoom.toFixed(1)}x</span>
-        </div>
-
-        <div className="map-layer-stack">
-
-          <div className="map-place-list">
-            {nearbyPlaces.map((place) => (
-              <PlaceMarker
-                key={place.id}
-                place={place}
-                selected={selectedMarker === place.id}
-                deployed={deployedStructures.includes(place.id)}
-                onClick={() => onSelectMarker(place.id)}
-              />
-            ))}
-          </div>
-        </div>
-
         {placementPreview ? (
           <div className="placement-preview">
             プレビュー {placementPreview.kind} @ {placementPreview.x},
