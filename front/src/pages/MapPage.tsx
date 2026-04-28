@@ -65,9 +65,6 @@ export function MapPage() {
   const [enemyDisplayRoutes, setEnemyDisplayRoutes] = useState<
     Array<{ waypoints: LatLng[] }>
   >([]);
-  const [selectedStructureType, setSelectedStructureType] = useState<
-    "turret" | "wall" | null
-  >(null);
   const [attackBuff, setAttackBuff] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
@@ -153,7 +150,6 @@ export function MapPage() {
       setSelectedMarker(null);
       setEnemySpawnPoints([]);
       setEnemyDisplayRoutes([]);
-      setSelectedStructureType(null);
       setAttackBuff(false);
       setGameResult(null);
       setHitEnemyIds(new Set());
@@ -233,9 +229,9 @@ export function MapPage() {
     }
   };
 
-  const handlePlaceStructureAtPosition = async () => {
-    if (!currentPosition || !selectedStructureType || isPlacingStructure) return;
-    const cost = selectedStructureType === "turret" ? TURRET_COST : WALL_COST;
+  const handlePlaceStructure = async (type: "turret" | "wall") => {
+    if (!currentPosition || isPlacingStructure) return;
+    const cost = type === "turret" ? TURRET_COST : WALL_COST;
     if (bitcoin < cost) return;
 
     setIsPlacingStructure(true);
@@ -244,18 +240,14 @@ export function MapPage() {
         id: `local-${Date.now()}`,
         lat: currentPosition.lat,
         lng: currentPosition.lng,
-        kind: selectedStructureType,
-        hp: selectedStructureType === "turret" ? 120 : 200,
-        maxHp: selectedStructureType === "turret" ? 120 : 200,
-        rangeM: selectedStructureType === "turret" ? 80 : 35,
+        kind: type,
+        hp: type === "turret" ? 120 : 200,
+        maxHp: type === "turret" ? 120 : 200,
+        rangeM: type === "turret" ? 80 : 35,
       };
 
       try {
-        const res = await postStructure(
-          selectedStructureType,
-          currentPosition.lat,
-          currentPosition.lng,
-        );
+        const res = await postStructure(type, currentPosition.lat, currentPosition.lng);
         newStructure.id = res.id;
       } catch {
         /* フロントエンドのみで管理 */
@@ -306,7 +298,7 @@ export function MapPage() {
     setEnemies([]);
     setEnemySpawnPoints([]);
     setEnemyDisplayRoutes([]);
-    setSelectedStructureType(null);
+
     setStructures([]);
     setHomeCoords(null);
     setGamePhase("waiting");
@@ -320,7 +312,7 @@ export function MapPage() {
 
     setEnemyDisplayRoutes([]);
     setEnemySpawnPoints([]);
-    setSelectedStructureType(null);
+
     setAttackBuff(false);
     setHitEnemyIds(new Set());
     gameEndCalledRef.current = false;
@@ -342,13 +334,6 @@ export function MapPage() {
     if (gpsError) return "位置情報取得エラー";
     return "GPS 取得中…";
   })();
-
-  const aliveEnemyCount = enemies.filter((e) => e.state !== "dead").length;
-  const canPlaceHere =
-    !!currentPosition &&
-    !!selectedStructureType &&
-    bitcoin >= (selectedStructureType === "turret" ? TURRET_COST : WALL_COST) &&
-    !isPlacingStructure;
 
   // ── レンダー ──────────────────────────────────────────────────
   return (
@@ -383,172 +368,6 @@ export function MapPage() {
             設定
           </button>
         </div>
-      </div>
-
-      {/* スマホ: ボトムシート */}
-      <div className="mobile-bottom-sheet">
-        <div className="mobile-sheet-header">
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => setShowSettings(true)}
-          >
-            ⚙ 設定
-          </button>
-        </div>
-
-        {/* ── 待機中 ── */}
-        {gamePhase === "waiting" && (
-          <article className="feature-card">
-            <strong>ゲーム開始</strong>
-            <span>
-              現在地を「家（本拠地）」として設定し、敵3体が出現します。防衛施設を配置してからゲームスタートボタンを押してください。
-            </span>
-            {!currentPosition && (
-              <span className="muted">
-                GPS 取得中、または偽装モードで地図をタップして設定してください。
-              </span>
-            )}
-          </article>
-        )}
-
-        {/* ── 準備フェーズ ── */}
-        {gamePhase === "prep" && (
-          <>
-            <article className="feature-card">
-              <strong>準備フェーズ</strong>
-              <span>BTC: {bitcoin}</span>
-              {isFetchingRoutes && (
-                <span className="muted">🗺 道路ルートを取得中...</span>
-              )}
-              {!isFetchingRoutes && enemyDisplayRoutes.length > 0 && (
-                <span className="muted">🗺 道路ルート表示中</span>
-              )}
-              {attackBuff && (
-                <div className="buff-banner">
-                  ⚡ コンビニバフ発動中！タレット攻撃力 ×1.5
-                </div>
-              )}
-            </article>
-
-            <article className="feature-card">
-              <strong>防衛施設を設置</strong>
-              <span className="muted">施設種別を選んで現在地に設置します</span>
-              <div className="choice-grid compact">
-                <button
-                  type="button"
-                  className={
-                    selectedStructureType === "turret"
-                      ? "choice-chip active"
-                      : "choice-chip"
-                  }
-                  onClick={() =>
-                    setSelectedStructureType((p) =>
-                      p === "turret" ? null : "turret",
-                    )
-                  }
-                >
-                  <strong>🔫 タレット</strong>
-                  <small>射程80m・攻撃型 -{TURRET_COST} BTC</small>
-                </button>
-                <button
-                  type="button"
-                  className={
-                    selectedStructureType === "wall"
-                      ? "choice-chip active"
-                      : "choice-chip"
-                  }
-                  onClick={() =>
-                    setSelectedStructureType((p) =>
-                      p === "wall" ? null : "wall",
-                    )
-                  }
-                >
-                  <strong>🧱 壁</strong>
-                  <small>射程35m・足止め型 -{WALL_COST} BTC</small>
-                </button>
-              </div>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handlePlaceStructureAtPosition}
-                disabled={!canPlaceHere}
-              >
-                {isPlacingStructure
-                  ? "設置中..."
-                  : !selectedStructureType
-                    ? "施設種別を選択"
-                    : !currentPosition
-                      ? "GPS 取得中..."
-                      : bitcoin <
-                          (selectedStructureType === "turret"
-                            ? TURRET_COST
-                            : WALL_COST)
-                        ? "BTC 不足"
-                        : `現在地に設置 (-${
-                            selectedStructureType === "turret"
-                              ? TURRET_COST
-                              : WALL_COST
-                          } BTC)`}
-              </button>
-              {structures.length > 0 && (
-                <span className="muted">設置済み: {structures.length} 基</span>
-              )}
-            </article>
-
-            {nearbyPlaces.some((p) => p.kind === "convenience-store") && (
-              <article className="feature-card">
-                <strong>近くのコンビニ</strong>
-                {nearbyPlaces
-                  .filter((p) => p.kind === "convenience-store")
-                  .slice(0, 3)
-                  .map((p) => (
-                    <span key={p.id} className="muted">
-                      {p.name} — {p.distance}m
-                      {p.distance <= CONBINI_BUFF_RADIUS_M && (
-                        <span style={{ color: "#fbbf24", marginLeft: 6 }}>
-                          ⚡ バフ発動中
-                        </span>
-                      )}
-                    </span>
-                  ))}
-              </article>
-            )}
-          </>
-        )}
-
-        {/* ── バトルフェーズ ── */}
-        {gamePhase === "battle" && (
-          <>
-            <article className="feature-card">
-              <strong>バトルフェーズ</strong>
-              <span>残り: {formatTime(battleRemaining)}</span>
-              <span>
-                家 HP:{" "}
-                <strong
-                  style={{
-                    color:
-                      homeHp > 60
-                        ? "#86efac"
-                        : homeHp > 30
-                          ? "#fbbf24"
-                          : "#f87171",
-                  }}
-                >
-                  {homeHp}
-                </strong>
-                {" / 100"}
-              </span>
-              <span>
-                敵: {aliveEnemyCount} / {enemies.length} 体
-              </span>
-              {attackBuff && (
-                <div className="buff-banner">⚡ コンビニバフ発動中</div>
-              )}
-            </article>
-
-          </>
-        )}
       </div>
 
       {/* 右下フローティング CTA（waiting のみ） */}
@@ -592,8 +411,12 @@ export function MapPage() {
         onReturnToPrep={gamePhase === "battle" ? handleReturnToPrep : undefined}
         onReturnToWaiting={gamePhase === "prep" ? handleReturnToWaiting : undefined}
         onDeleteStructure={handleDeleteStructure}
+        onPlaceStructure={gamePhase === "prep" ? handlePlaceStructure : undefined}
+        isPlacingStructure={isPlacingStructure}
+        onOpenSettings={() => setShowSettings(true)}
         pendingBack={pendingBack}
         onPendingBackChange={setPendingBack}
+        isFetchingRoutes={isFetchingRoutes}
       />
 
       {gpsError && !isSpoofing && (
@@ -608,8 +431,6 @@ export function MapPage() {
           </span>
         </article>
       )}
-
-      <p className="muted">{currentPositionLabel}</p>
 
       {showSettings && (
         <div className="settings-modal" role="dialog" aria-modal="true">

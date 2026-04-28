@@ -770,9 +770,82 @@
 }
 
 @media (max-width: 768px) {
+  /* モバイル: 左上 */
   .map-back-btn {
-    bottom: calc(56dvh + 52px);
+    bottom: auto;
+    top: 16px;
+    left: 16px;
   }
+}
+
+/* ── 設定ボタン（地図オーバーレイ・左下） ──────────────────── */
+.map-settings-btn {
+  position: absolute;
+  left: 16px;
+  bottom: 28px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(148, 163, 184, 0.35);
+  background: rgba(10, 16, 30, 0.78);
+  backdrop-filter: blur(10px);
+  color: #cbd5e1;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.map-settings-btn:hover {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+/* デスクトップでは非表示（サイドバーに設定あり） */
+@media (min-width: 769px) {
+  .map-settings-btn { display: none; }
+}
+
+/* ── 施設配置ボタン（地図オーバーレイ） ─────────────────────── */
+.map-place-btn {
+  position: absolute;
+  bottom: 28px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(148, 163, 184, 0.35);
+  background: rgba(10, 16, 30, 0.78);
+  backdrop-filter: blur(10px);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+/* デスクトップ: 横並び（設定ボタンは非表示なので left:16px から） */
+.map-place-btn--wall   { left: 16px; }
+.map-place-btn--turret { left: 68px; }
+
+.map-place-btn:hover {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+@media (max-width: 768px) {
+  /* モバイル: 縦積み（設定の上に 🧱、さらに上に 🔫） */
+  .map-place-btn--wall,
+  .map-place-btn--turret {
+    left: 16px;
+  }
+  .map-settings-btn      { bottom: 28px; }
+  .map-place-btn--wall   { bottom: 80px; }
+  .map-place-btn--turret { bottom: 132px; }
 }
 
 /* ── 戻る確認ダイアログ ──────────────────────────────────────── */
@@ -876,13 +949,20 @@
 /* ── モバイル: ゲームスタートボタン位置調整 ───────────────────── */
 @media (max-width: 768px) {
   .map-start-battle-btn {
-    bottom: 56dvh;
+    left: auto;
+    right: 16px;
+    bottom: 28px;
+    transform: none;
     font-size: 1rem;
-    padding: 14px 32px;
+    padding: 14px 24px;
+  }
+
+  .floating-action {
+    bottom: 28px !important;
   }
 
   .map-buff-indicator {
-    bottom: calc(56dvh + 12px);
+    bottom: 80px;
   }
 }
 
