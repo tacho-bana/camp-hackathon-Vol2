@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { calcDistance } from "../../utils/geo";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -912,6 +913,15 @@ export function MapView({
                   GPS 取得中...
                 </p>
               )}
+              {currentPosition && structures.some(
+                (s) => s.kind === pendingPlacement &&
+                  calcDistance(currentPosition, { lat: s.lat, lng: s.lng }) <
+                  (pendingPlacement === "turret" ? 80 : 35),
+              ) && (
+                <p style={{ margin: 0, fontSize: "0.82rem", color: "#f87171" }}>
+                  同じ施設の射程内には設置できません
+                </p>
+              )}
               {currentPosition && bitcoin < (pendingPlacement === "turret" ? 100 : 50) && (
                 <p style={{ margin: 0, fontSize: "0.82rem", color: "#f87171" }}>
                   BTC 不足（必要: {pendingPlacement === "turret" ? 100 : 50} BTC）
@@ -931,7 +941,12 @@ export function MapView({
                   disabled={
                     !currentPosition ||
                     isPlacingStructure ||
-                    bitcoin < (pendingPlacement === "turret" ? 100 : 50)
+                    bitcoin < (pendingPlacement === "turret" ? 100 : 50) ||
+                    structures.some(
+                      (s) => s.kind === pendingPlacement &&
+                        calcDistance(currentPosition, { lat: s.lat, lng: s.lng }) <
+                        (pendingPlacement === "turret" ? 80 : 35),
+                    )
                   }
                   onClick={() => {
                     onPlaceStructure?.(pendingPlacement);
