@@ -10,6 +10,7 @@ import { postGameBase, postGameStart, postGameClear, postGameEnd } from "../api/
 import { postStructure } from "../api/structures";
 import { navigateTo } from "../routing/navigation";
 import type {
+  Enemy,
   LatLng,
   MapViewport,
   PlacementPreview,
@@ -74,6 +75,31 @@ export function MapPage() {
     () => nearbyPlaces.find((place) => place.id === selectedMarker) ?? null,
     [nearbyPlaces, selectedMarker],
   );
+
+  // DEV時は敵配信が空でも、マップ上のp5敵描画を4体並べて確認できるようにする。
+  const enemiesForMap = useMemo<Enemy[]>(() => {
+    if (enemies.length > 0 || !import.meta.env.DEV) {
+      return enemies;
+    }
+
+    const center = currentPosition ?? homeCoords ?? { lat: 35.6812, lng: 139.7671 };
+    const offsets = [
+      { lat: 0.00045, lng: -0.00045 },
+      { lat: 0.00035, lng: 0.00035 },
+      { lat: -0.00025, lng: -0.0002 },
+      { lat: -0.0004, lng: 0.00045 },
+    ];
+
+    return offsets.map((offset, index) => ({
+      id: `dev-enemy-${index + 1}`,
+      lat: center.lat + offset.lat,
+      lng: center.lng + offset.lng,
+      hp: 100,
+      maxHp: 100,
+      speed: 1,
+      state: "moving",
+    }));
+  }, [currentPosition, enemies, homeCoords]);
 
   const canCheckIn =
     selectedPlace !== null &&
@@ -424,7 +450,7 @@ export function MapPage() {
         isSpoofing={isSpoofing}
         onSpoofedLocationSet={setSpoofedPosition}
         structures={structures}
-        enemies={enemies}
+        enemies={enemiesForMap}
         homeCoords={homeCoords}
         gamePhase={gamePhase}
         bitcoin={bitcoin}

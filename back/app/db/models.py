@@ -36,6 +36,20 @@ class User(Base):
     )
 
 
+class UserSession(Base):
+    __tablename__ = "sessions"
+
+    session_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    csrf_token: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Base_(Base):
     """本拠地。Base という名前は Python 標準と被るため Base_ とする。"""
     __tablename__ = "bases"

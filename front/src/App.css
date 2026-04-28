@@ -347,6 +347,26 @@
   inset: 0;
 }
 
+.enemy-overlay-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.enemy-overlay-item {
+  position: absolute;
+}
+
+.enemy-overlay-canvas {
+  width: 64px;
+  height: 72px;
+}
+
+.enemy-overlay-canvas canvas {
+  display: block;
+}
+
 .map-overlay {
   position: relative;
   z-index: 2;
@@ -409,6 +429,7 @@
 
 .layer-enemy {
   top: 80px;
+  width: 240px;
 }
 
 .layer-structure {
