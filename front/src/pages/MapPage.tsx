@@ -71,7 +71,6 @@ export function MapPage() {
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPlacingStructure, setIsPlacingStructure] = useState(false);
-  const [isFetchingRoutes, setIsFetchingRoutes] = useState(false);
   const [gameResult, setGameResult] = useState<"win" | "lose" | null>(null);
   const [hitEnemyIds, setHitEnemyIds] = useState<Set<string>>(new Set());
   /** 戻る確認ダイアログの状態（MapView から引き上げ） */
@@ -209,7 +208,6 @@ export function MapPage() {
       setGamePhase("prep");
 
       // 道路ルートをバックグラウンドで取得
-      setIsFetchingRoutes(true);
       Promise.all(
         testEnemies.map((e) => fetchRoadRoute({ lat: e.lat, lng: e.lng }, base)),
       )
@@ -223,8 +221,7 @@ export function MapPage() {
             })),
           );
         })
-        .catch(console.error)
-        .finally(() => setIsFetchingRoutes(false));
+        .catch(console.error);
     } finally {
       setIsStartingGame(false);
     }
@@ -330,15 +327,6 @@ export function MapPage() {
     return `${m}:${s}`;
   };
 
-  const currentPositionLabel = (() => {
-    if (currentPosition) {
-      const coords = `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`;
-      return isSpoofing ? `${coords} (偽装中)` : coords;
-    }
-    if (isSpoofing) return "地図をタップして現在地を設定";
-    if (gpsError) return "位置情報取得エラー";
-    return "GPS 取得中…";
-  })();
 
   // ── レンダー ──────────────────────────────────────────────────
   return (
@@ -405,7 +393,6 @@ export function MapPage() {
         bitcoin={bitcoin}
         homeHp={homeHp}
         battleRemaining={battleRemaining}
-        currentPositionLabel={currentPositionLabel}
         enemyRoutes={enemyRoutes}
         onStartBattle={gamePhase === "prep" ? handleStartBattle : undefined}
         isStartingBattle={isStartingBattle}
@@ -421,7 +408,6 @@ export function MapPage() {
         onOpenSettings={() => setShowSettings(true)}
         pendingBack={pendingBack}
         onPendingBackChange={setPendingBack}
-        isFetchingRoutes={isFetchingRoutes}
       />
 
       {gpsError && !isSpoofing && (

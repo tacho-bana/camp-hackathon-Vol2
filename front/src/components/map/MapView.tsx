@@ -62,7 +62,6 @@ export function MapView({
   bitcoin,
   homeHp,
   battleRemaining,
-  currentPositionLabel,
   enemyRoutes,
   onStartBattle,
   isStartingBattle,
@@ -78,7 +77,6 @@ export function MapView({
   onOpenSettings,
   pendingBack,
   onPendingBackChange,
-  isFetchingRoutes = false,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -96,7 +94,6 @@ export function MapView({
   bitcoin: number;
   homeHp: number;
   battleRemaining: number;
-  currentPositionLabel: string;
   enemyRoutes: EnemyRoute[];
   onStartBattle?: () => void;
   isStartingBattle?: boolean;
@@ -112,7 +109,6 @@ export function MapView({
   onOpenSettings?: () => void;
   pendingBack: "toWaiting" | "toPrep" | null;
   onPendingBackChange: (v: "toWaiting" | "toPrep" | null) => void;
-  isFetchingRoutes?: boolean;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -586,14 +582,36 @@ export function MapView({
           </div>
         ) : (
           <div className="map-status-card">
-            <strong>
-              {gamePhase === "waiting" && "待機中"}
-              {gamePhase === "prep" && "準備中"}
-              {gamePhase === "battle" &&
-                `⚔ ${Math.floor(battleRemaining / 60)}:${String(battleRemaining % 60).padStart(2, "0")}`}
-              {gamePhase === "result" &&
-                (gameResult === "win" ? "🎉 VICTORY!" : "💀 DEFEAT...")}
-            </strong>
+            <div className="map-status-card-header">
+              {gamePhase === "prep" && onReturnToWaiting && (
+                <button
+                  type="button"
+                  className="map-status-back-btn"
+                  aria-label="開始前に戻る"
+                  onClick={() => onPendingBackChange("toWaiting")}
+                >
+                  ←
+                </button>
+              )}
+              {gamePhase === "battle" && onReturnToPrep && (
+                <button
+                  type="button"
+                  className="map-status-back-btn map-status-back-btn--pause"
+                  aria-label="準備に戻る"
+                  onClick={() => onPendingBackChange("toPrep")}
+                >
+                  ⏸
+                </button>
+              )}
+              <strong className="map-status-phase">
+                {gamePhase === "waiting" && "待機中"}
+                {gamePhase === "prep" && "準備中"}
+                {gamePhase === "battle" &&
+                  `⚔ ${Math.floor(battleRemaining / 60)}:${String(battleRemaining % 60).padStart(2, "0")}`}
+                {gamePhase === "result" &&
+                  (gameResult === "win" ? "🎉 VICTORY!" : "💀 DEFEAT...")}
+              </strong>
+            </div>
             <span>
               BTC {bitcoin} / HP{" "}
               <span
@@ -611,29 +629,11 @@ export function MapView({
               </span>
               /100
             </span>
-            {gamePhase === "prep" && enemies.length > 0 && (
-              <span style={{ fontSize: "0.82rem", color: "#9aa9bc" }}>
-                敵 {enemies.length} 体が侵攻予定
-              </span>
-            )}
             {(gamePhase === "battle" || gamePhase === "result") && (
               <span>
                 敵 {deadCount}/{enemies.length} 撃破
               </span>
             )}
-            {gamePhase === "prep" && isFetchingRoutes && (
-              <span style={{ fontSize: "0.78rem", color: "#9aa9bc" }}>
-                🗺 ルート取得中...
-              </span>
-            )}
-            {gamePhase === "prep" && !isFetchingRoutes && enemyRoutes.length > 0 && (
-              <span style={{ fontSize: "0.78rem", color: "#9aa9bc" }}>
-                🗺 ルート表示中
-              </span>
-            )}
-            <span style={{ fontSize: "0.78rem", color: "#7dd3fc" }}>
-              {currentPositionLabel}
-            </span>
           </div>
         )}
 
@@ -666,17 +666,6 @@ export function MapView({
           </button>
         )}
 
-        {/* 戻るボタン（アイコンのみ） */}
-        {gamePhase === "prep" && onReturnToWaiting && (
-          <button
-            type="button"
-            className="map-back-btn"
-            aria-label="開始前に戻る"
-            onClick={() => onPendingBackChange("toWaiting")}
-          >
-            ←
-          </button>
-        )}
 
         {/* 施設配置ボタン（prep フェーズ・左下） */}
         {gamePhase === "prep" && onPlaceStructure && (
@@ -745,16 +734,6 @@ export function MapView({
               </div>
             </div>
           </div>
-        )}
-        {gamePhase === "battle" && onReturnToPrep && (
-          <button
-            type="button"
-            className="map-back-btn map-back-btn--battle"
-            aria-label="準備に戻る"
-            onClick={() => onPendingBackChange("toPrep")}
-          >
-            ⏸
-          </button>
         )}
 
         {/* 施設削除確認ダイアログ */}

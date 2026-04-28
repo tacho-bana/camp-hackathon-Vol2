@@ -451,11 +451,54 @@
   display: grid;
   gap: 6px;
   max-width: 300px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 16px;
-  background: rgba(2, 6, 23, 0.8);
+  background: rgba(2, 6, 23, 0.82);
   border: 1px solid rgba(148, 163, 184, 0.16);
   color: #d7e0ea;
+}
+
+.map-status-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-status-phase {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.map-status-back-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(30, 41, 59, 0.7);
+  color: #d7e0ea;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.map-status-back-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+.map-status-back-btn--pause {
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #fbbf24;
+}
+
+.map-status-back-btn--pause:hover {
+  background: rgba(30, 20, 0, 0.88);
+  border-color: rgba(251, 191, 36, 0.8);
+  color: #fde68a;
 }
 
 .bottom-action-panel {
