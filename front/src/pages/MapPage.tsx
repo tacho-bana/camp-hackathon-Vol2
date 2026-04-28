@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { User as UserIcon, ArrowLeft as ArrowLeftIcon } from "lucide-react";
+import { User as UserIcon, ArrowLeft as ArrowLeftIcon, BookOpen as BookOpenIcon } from "lucide-react";
+import { TutorialModal } from "../components/TutorialModal";
 import { MapView } from "../components/map/MapView";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useNearbyPOI } from "../hooks/useNearbyPOI";
@@ -71,6 +72,7 @@ export function MapPage() {
   const [attackBuff, setAttackBuff] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showStageSelect, setShowStageSelect] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPlacingStructure, setIsPlacingStructure] = useState(false);
@@ -85,7 +87,20 @@ export function MapPage() {
   /** バトル開始直前の敵スナップショット（準備フェーズへ巻き戻す際に使う） */
   const initialEnemiesRef = useRef<Enemy[]>([]);
   const hitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevHomeHpRef = useRef(homeHp);
+  const [baseDamageFlash, setBaseDamageFlash] = useState(false);
   useEffect(() => { homeHpRef.current = homeHp; }, [homeHp]);
+
+  // 拠点HPが減ったらフラッシュ演出
+  useEffect(() => {
+    if (homeHp < prevHomeHpRef.current && gamePhase === "battle") {
+      setBaseDamageFlash(true);
+      const t = setTimeout(() => setBaseDamageFlash(false), 600);
+      prevHomeHpRef.current = homeHp;
+      return () => clearTimeout(t);
+    }
+    prevHomeHpRef.current = homeHp;
+  }, [homeHp, gamePhase]);
 
   /** ダイアログ表示中はバトルを一時停止 */
   const isPaused = pendingBack === "toPrep";
@@ -399,6 +414,14 @@ export function MapPage() {
             >
               ゲームを始める
             </button>
+            <button
+              type="button"
+              className="title-tutorial-btn"
+              onClick={() => setShowTutorial(true)}
+            >
+              <BookOpenIcon size={15} />
+              遊び方
+            </button>
             {!currentPosition && (
               <p className="title-gps-hint">GPS 取得中...</p>
             )}
@@ -494,6 +517,15 @@ export function MapPage() {
             Chrome のアドレスバー横の鍵アイコン →「位置情報」→「許可」に変更してください。
           </span>
         </article>
+      )}
+
+      {/* 拠点ダメージフラッシュ */}
+      {baseDamageFlash && (
+        <div className="base-damage-flash" aria-hidden="true" />
+      )}
+
+      {showTutorial && (
+        <TutorialModal onClose={() => setShowTutorial(false)} />
       )}
 
       {showSettings && (
