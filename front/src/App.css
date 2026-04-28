@@ -807,6 +807,27 @@
   transform: translate(-50%, -50%);
 }
 
+/* Enemy HP Bar */
+.enemy-hp-bar-bg {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  width: 36px;
+  height: 4px;
+  background: rgba(2, 6, 23, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  transform: translateX(-50%);
+  overflow: hidden;
+  z-index: 10;
+}
+.enemy-hp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* ── スマホ縦（≤768px） ── */
 @media (max-width: 768px) {
   html,

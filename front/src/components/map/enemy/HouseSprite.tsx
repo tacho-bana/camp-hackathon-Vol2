@@ -124,8 +124,17 @@ export function HouseSprite({ enemy }: HouseSpriteProps) {
     }
   }, [enemy.state]);
 
+  const hpPercent = Math.max(0, Math.min(100, (enemy.hp / enemy.maxHp) * 100));
+
   return (
     <div ref={spriteRef} className="house-sprite">
+      <div className="enemy-hp-bar-bg">
+        <div
+          className="enemy-hp-bar-fill"
+          style={{ width: `${hpPercent}%` }}
+        />
+      </div>
+
       <div ref={bodyRef} className="house-body-wrap">
         <img className="house-body" src="/enemy/house/body.svg" alt="" draggable={false} />
       </div>
