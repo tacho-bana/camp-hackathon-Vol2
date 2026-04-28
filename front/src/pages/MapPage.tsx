@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { User as UserIcon, ArrowLeft as ArrowLeftIcon } from "lucide-react";
+import { User as UserIcon, ArrowLeft as ArrowLeftIcon, BookOpen as BookOpenIcon } from "lucide-react";
+import { TutorialModal } from "../components/TutorialModal";
 import { MapView } from "../components/map/MapView";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { useNearbyPOI } from "../hooks/useNearbyPOI";
@@ -71,6 +72,7 @@ export function MapPage() {
   const [attackBuff, setAttackBuff] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showStageSelect, setShowStageSelect] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isStartingBattle, setIsStartingBattle] = useState(false);
   const [isPlacingStructure, setIsPlacingStructure] = useState(false);
@@ -85,7 +87,20 @@ export function MapPage() {
   /** バトル開始直前の敵スナップショット（準備フェーズへ巻き戻す際に使う） */
   const initialEnemiesRef = useRef<Enemy[]>([]);
   const hitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevHomeHpRef = useRef(homeHp);
+  const [baseDamageFlash, setBaseDamageFlash] = useState(false);
   useEffect(() => { homeHpRef.current = homeHp; }, [homeHp]);
+
+  // 拠点HPが減ったらフラッシュ演出
+  useEffect(() => {
+    if (homeHp < prevHomeHpRef.current && gamePhase === "battle") {
+      setBaseDamageFlash(true);
+      const t = setTimeout(() => setBaseDamageFlash(false), 600);
+      prevHomeHpRef.current = homeHp;
+      return () => clearTimeout(t);
+    }
+    prevHomeHpRef.current = homeHp;
+  }, [homeHp, gamePhase]);
 
   /** ダイアログ表示中はバトルを一時停止 */
   const isPaused = pendingBack === "toPrep";
@@ -194,40 +209,40 @@ export function MapPage() {
 
   // ── ハンドラー ────────────────────────────────────────────────
 
-  // waiting → prep（postGameBase で本拠地を設定）
-  const handleStartGame = async () => {
+  // waiting → prep（楽観的更新: 即座に画面遷移してAPIはバックグラウンドで実行）
+  const handleStartGame = () => {
     if (!currentPosition || isStartingGame) return;
     setIsStartingGame(true);
-    try {
-      await postGameBase(currentPosition.lat, currentPosition.lng).catch(
-        console.error,
-      );
 
-      const base = currentPosition;
-      const testEnemies = spawnTestEnemies(base);
-      setHomeCoords(base);
-      setEnemies(testEnemies);
-      setEnemySpawnPoints(testEnemies.map((e) => ({ lat: e.lat, lng: e.lng })));
-      setGamePhase("prep");
+    const base = currentPosition;
+    const testEnemies = spawnTestEnemies(base);
 
-      // 道路ルートをバックグラウンドで取得
-      Promise.all(
-        testEnemies.map((e) => fetchRoadRoute({ lat: e.lat, lng: e.lng }, base)),
-      )
-        .then((routes) => {
-          setEnemyDisplayRoutes(routes.map((waypoints) => ({ waypoints })));
-          setEnemies(
-            testEnemies.map((enemy, i) => ({
-              ...enemy,
-              route: routes[i],
-              routeIndex: 0,
-            })),
-          );
-        })
-        .catch(console.error);
-    } finally {
-      setIsStartingGame(false);
-    }
+    // 即座に画面遷移
+    setHomeCoords(base);
+    setEnemies(testEnemies);
+    setEnemySpawnPoints(testEnemies.map((e) => ({ lat: e.lat, lng: e.lng })));
+    setShowStageSelect(false);
+    setGamePhase("prep");
+    setIsStartingGame(false);
+
+    // バックグラウンドでAPIと同期
+    postGameBase(base.lat, base.lng).catch(console.error);
+
+    // 道路ルートをバックグラウンドで取得
+    Promise.all(
+      testEnemies.map((e) => fetchRoadRoute({ lat: e.lat, lng: e.lng }, base)),
+    )
+      .then((routes) => {
+        setEnemyDisplayRoutes(routes.map((waypoints) => ({ waypoints })));
+        setEnemies(
+          testEnemies.map((enemy, i) => ({
+            ...enemy,
+            route: routes[i],
+            routeIndex: 0,
+          })),
+        );
+      })
+      .catch(console.error);
   };
 
   const handlePlaceStructure = async (type: "turret" | "wall") => {
@@ -245,29 +260,30 @@ export function MapPage() {
     if (tooClose) return;
 
     setIsPlacingStructure(true);
-    try {
-      const newStructure: Structure = {
-        id: `local-${Date.now()}`,
-        lat: currentPosition.lat,
-        lng: currentPosition.lng,
-        kind: type,
-        hp: type === "turret" ? 120 : 200,
-        maxHp: type === "turret" ? 120 : 200,
-        rangeM: type === "turret" ? 80 : 35,
-      };
 
-      try {
-        const res = await postStructure(type, currentPosition.lat, currentPosition.lng);
-        newStructure.id = res.id;
-      } catch {
-        /* フロントエンドのみで管理 */
-      }
+    // 楽観的更新: 即座に画面に反映
+    const localId = `local-${Date.now()}`;
+    const newStructure: Structure = {
+      id: localId,
+      lat: currentPosition.lat,
+      lng: currentPosition.lng,
+      kind: type,
+      hp: type === "turret" ? 120 : 200,
+      maxHp: type === "turret" ? 120 : 200,
+      rangeM: type === "turret" ? 80 : 35,
+    };
+    setStructures((prev) => [...prev, newStructure]);
+    spendBitcoin(cost);
 
-      setStructures((prev) => [...prev, newStructure]);
-      spendBitcoin(cost);
-    } finally {
-      setIsPlacingStructure(false);
-    }
+    // バックグラウンドでAPIと同期（IDを正式なものに差し替え）
+    postStructure(type, currentPosition.lat, currentPosition.lng)
+      .then((res) => {
+        setStructures((prev) =>
+          prev.map((s) => (s.id === localId ? { ...s, id: res.id } : s)),
+        );
+      })
+      .catch(() => { /* フロントエンドのみで管理 */ })
+      .finally(() => setIsPlacingStructure(false));
   };
 
   const handleStartBattle = () => {
@@ -398,6 +414,14 @@ export function MapPage() {
             >
               ゲームを始める
             </button>
+            <button
+              type="button"
+              className="title-tutorial-btn"
+              onClick={() => setShowTutorial(true)}
+            >
+              <BookOpenIcon size={15} />
+              遊び方
+            </button>
             {!currentPosition && (
               <p className="title-gps-hint">GPS 取得中...</p>
             )}
@@ -495,6 +519,15 @@ export function MapPage() {
         </article>
       )}
 
+      {/* 拠点ダメージフラッシュ */}
+      {baseDamageFlash && (
+        <div className="base-damage-flash" aria-hidden="true" />
+      )}
+
+      {showTutorial && (
+        <TutorialModal onClose={() => setShowTutorial(false)} />
+      )}
+
       {showSettings && (
         <div className="settings-modal" role="dialog" aria-modal="true">
           <article className="settings-card">
@@ -529,24 +562,18 @@ export function MapPage() {
                 ログアウト
               </button>
             </div>
-            {import.meta.env.DEV && (
-              <div>
-                <p className="eyebrow" style={{ marginBottom: 8 }}>
-                  開発者ツール
-                </p>
-                <div className="dev-tools">
-                  <button
-                    type="button"
-                    className={
-                      isSpoofing ? "ghost-button active" : "ghost-button"
-                    }
-                    onClick={() => setIsSpoofing((p) => !p)}
-                  >
-                    {isSpoofing ? "偽装 ON" : "偽装 OFF"}
-                  </button>
-                </div>
+            <div>
+              <p className="eyebrow" style={{ marginBottom: 8 }}>位置情報</p>
+              <div className="dev-tools">
+                <button
+                  type="button"
+                  className={isSpoofing ? "ghost-button active" : "ghost-button"}
+                  onClick={() => setIsSpoofing((p) => !p)}
+                >
+                  {isSpoofing ? "偽装モード ON" : "偽装モード OFF"}
+                </button>
               </div>
-            )}
+            </div>
           </article>
         </div>
       )}

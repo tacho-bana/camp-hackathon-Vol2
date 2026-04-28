@@ -467,16 +467,40 @@ export function MapView({
 
     if (!homeMarkerRef.current) {
       const el = document.createElement("div");
-      el.style.cssText =
-        "width:36px;height:36px;background:#fbbf24;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 10px rgba(0,0,0,0.6);cursor:default;";
-      el.textContent = "🏠";
-      homeMarkerRef.current = new mapboxgl.Marker({ element: el })
+      el.innerHTML = `
+        <div style="position:relative;width:56px;height:56px;display:flex;align-items:center;justify-content:center;">
+          <div style="
+            position:absolute;inset:0;border-radius:50%;
+            border:2px solid rgba(251,191,36,0.6);
+            animation:home-pulse 2s ease-out infinite;
+          "></div>
+          <div style="
+            position:absolute;inset:6px;border-radius:50%;
+            border:2px solid rgba(251,191,36,0.3);
+            animation:home-pulse 2s ease-out infinite 0.6s;
+          "></div>
+          <div style="
+            width:38px;height:38px;border-radius:50%;
+            background:linear-gradient(135deg,#fbbf24,#f59e0b);
+            border:2px solid #fff;
+            box-shadow:0 0 16px rgba(251,191,36,0.7),0 2px 8px rgba(0,0,0,0.5);
+            display:flex;align-items:center;justify-content:center;
+            position:relative;z-index:1;
+          ">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1c1008" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+        </div>
+        <style>
+          @keyframes home-pulse {
+            0%   { transform:scale(1);   opacity:0.8; }
+            100% { transform:scale(1.8); opacity:0;   }
+          }
+        </style>
+      `;
+      homeMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: "center" })
         .setLngLat([homeCoords.lng, homeCoords.lat])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 20 }).setHTML(
-            "<strong>本拠地</strong><br>ここを守り切れ！",
-          ),
-        )
         .addTo(mapRef.current);
     } else {
       homeMarkerRef.current.setLngLat([homeCoords.lng, homeCoords.lat]);
