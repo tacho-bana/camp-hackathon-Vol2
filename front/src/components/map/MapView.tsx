@@ -607,7 +607,7 @@ export function MapView({
                 {gamePhase === "waiting" && "待機中"}
                 {gamePhase === "prep" && "準備中"}
                 {gamePhase === "battle" &&
-                  `⚔ ${Math.floor(battleRemaining / 60)}:${String(battleRemaining % 60).padStart(2, "0")}`}
+                  `${Math.floor(battleRemaining / 60)}:${String(battleRemaining % 60).padStart(2, "0")}`}
                 {gamePhase === "result" &&
                   (gameResult === "win" ? "🎉 VICTORY!" : "💀 DEFEAT...")}
               </strong>
@@ -650,7 +650,7 @@ export function MapView({
             onClick={onStartBattle}
             disabled={isStartingBattle}
           >
-            {isStartingBattle ? "開始中..." : "⚔ ゲームスタート"}
+            {isStartingBattle ? "開始中..." : "ゲームスタート"}
           </button>
         )}
 
