@@ -176,6 +176,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       bitcoin,
       currentBaseSummary,
       currentUser,
+      difficulty,
       enemies,
       gamePhase,
       homeCoords,

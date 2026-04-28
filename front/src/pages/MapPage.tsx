@@ -179,9 +179,8 @@ export function MapPage() {
     }));
   };
 
-  // waiting → difficulty
+  // waiting → difficulty（位置情報は不要）
   const handleGoToDifficulty = () => {
-    if (!currentPosition) return;
     setGamePhase("difficulty");
   };
 
@@ -424,7 +423,6 @@ export function MapPage() {
           type="button"
           className="primary-button floating-action"
           onClick={handleGoToDifficulty}
-          disabled={!currentPosition}
         >
           ゲームを始める
         </button>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type {
@@ -76,12 +76,16 @@ export function MapView({
   const nearbyPlaceMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const structureMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const hasAutocenteredRef = useRef(false);
+  const savedBearingRef = useRef(-12);
+  const savedPitchRef = useRef(35);
   const [enemyOverlayItems, setEnemyOverlayItems] = useState<EnemyOverlayItem[]>(
     [],
   );
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
+  const [actualZoom, setActualZoom] = useState(13);
+  const [isNorthLocked, setIsNorthLocked] = useState(false);
 
   useEffect(() => {
     if (!mapboxToken || !mapContainerRef.current || mapRef.current) {
@@ -100,9 +104,11 @@ export function MapView({
     });
 
     map.addControl(
-      new mapboxgl.NavigationControl({ visualizePitch: true }),
+      new mapboxgl.NavigationControl({ visualizePitch: true, showCompass: false }),
       "top-right",
     );
+
+    map.on("zoom", () => setActualZoom(map.getZoom()));
 
     map.on("load", () => {
       setMapStatus("ready");
@@ -323,10 +329,52 @@ export function MapView({
     };
   }, [enemies, mapStatus]);
 
+  const handleCompassToggle = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!isNorthLocked) {
+      savedBearingRef.current = map.getBearing();
+      savedPitchRef.current = map.getPitch();
+      map.easeTo({ bearing: 0, pitch: 0, duration: 300 });
+      setIsNorthLocked(true);
+    } else {
+      map.easeTo({ bearing: savedBearingRef.current, pitch: savedPitchRef.current, duration: 300 });
+      setIsNorthLocked(false);
+    }
+  }, [isNorthLocked]);
+
   return (
     <section className="map-view">
       <div className="map-canvas">
         <div ref={mapContainerRef} className="mapbox-container" />
+
+        <button
+          type="button"
+          className="map-compass-toggle"
+          onClick={handleCompassToggle}
+          aria-label={isNorthLocked ? "ベアリングを元に戻す" : "北を上に固定"}
+          style={{
+            position: "absolute",
+            top: 78,
+            right: 10,
+            zIndex: 3,
+            width: 29,
+            height: 29,
+            borderRadius: 4,
+            border: "none",
+            background: isNorthLocked ? "#38bdf8" : "rgba(15,23,42,0.9)",
+            color: isNorthLocked ? "#07111b" : "#d7e0ea",
+            cursor: "pointer",
+            fontSize: 14,
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0 0 1px rgba(148,163,184,0.2)",
+          }}
+        >
+          N
+        </button>
 
         <div className="enemy-overlay-layer" aria-hidden="true">
           {enemyOverlayItems.map((item) => (
@@ -344,7 +392,7 @@ export function MapView({
           <span>
             表示範囲: {viewport.x}, {viewport.y}
           </span>
-          <span>ズーム: {viewport.zoom.toFixed(1)}x</span>
+          <span>ズーム: {actualZoom.toFixed(1)}x</span>
         </div>
 
         <div className="map-layer-stack">
