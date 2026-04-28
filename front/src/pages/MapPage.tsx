@@ -313,6 +313,10 @@ export function MapPage() {
     setGamePhase("prep");
   };
 
+  const handleDeleteStructure = (id: string) => {
+    setStructures((prev) => prev.filter((s) => s.id !== id));
+  };
+
   /** prep → waiting: 敵・スポーン情報・構造物をすべてクリア */
   const handleReturnToWaiting = () => {
     setEnemies([]);
@@ -617,6 +621,7 @@ export function MapPage() {
         onPlayAgain={handlePlayAgain}
         onReturnToPrep={gamePhase === "battle" ? handleReturnToPrep : undefined}
         onReturnToWaiting={gamePhase === "prep" ? handleReturnToWaiting : undefined}
+        onDeleteStructure={handleDeleteStructure}
       />
 
       {gpsError && !isSpoofing && (

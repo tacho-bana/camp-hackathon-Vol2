@@ -76,6 +76,7 @@ export function MapView({
   onPlayAgain,
   onReturnToPrep,
   onReturnToWaiting,
+  onDeleteStructure,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -104,6 +105,7 @@ export function MapView({
   onPlayAgain: () => void;
   onReturnToPrep?: () => void;
   onReturnToWaiting?: () => void;
+  onDeleteStructure?: (id: string) => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -117,6 +119,7 @@ export function MapView({
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
   const [pendingBack, setPendingBack] = useState<"toWaiting" | "toPrep" | null>(null);
+  const [pendingDeleteStructure, setPendingDeleteStructure] = useState<Structure | null>(null);
 
   // ── 地図初期化 ────────────────────────────────────────────────
   useEffect(() => {
@@ -389,18 +392,15 @@ export function MapView({
           display:flex;align-items:center;justify-content:center;
           font-size:16px;
           box-shadow:0 2px 8px rgba(0,0,0,0.55);
-          cursor:default;
+          cursor:pointer;
         `;
         el.textContent = isTurret ? "🔫" : "🧱";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          setPendingDeleteStructure(structure);
+        });
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([structure.lng, structure.lat])
-          .setPopup(
-            (() => {
-              const div = document.createElement("div");
-              div.innerHTML = `<strong>${isTurret ? "タレット" : "壁"}</strong><br>射程: ${structure.rangeM}m<br>HP: ${structure.hp}/${structure.maxHp}`;
-              return new mapboxgl.Popup({ offset: 20 }).setDOMContent(div);
-            })(),
-          )
           .addTo(mapRef.current!);
         structureMarkersRef.current.set(structure.id, marker);
       }
@@ -556,7 +556,37 @@ export function MapView({
           </button>
         )}
 
-        {/* 確認ダイアログ */}
+        {/* 施設削除確認ダイアログ */}
+        {pendingDeleteStructure && (
+          <div className="map-back-confirm-overlay">
+            <div className="map-back-confirm-card">
+              <p className="map-back-confirm-msg">
+                {pendingDeleteStructure.kind === "turret" ? "🔫 タレット" : "🧱 壁"}を削除しますか？
+              </p>
+              <div className="map-back-confirm-actions">
+                <button
+                  type="button"
+                  className="map-back-confirm-btn map-back-confirm-btn--cancel"
+                  onClick={() => setPendingDeleteStructure(null)}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className="map-back-confirm-btn map-back-confirm-btn--ok"
+                  onClick={() => {
+                    onDeleteStructure?.(pendingDeleteStructure.id);
+                    setPendingDeleteStructure(null);
+                  }}
+                >
+                  削除
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 戻る確認ダイアログ */}
         {pendingBack && (
           <div className="map-back-confirm-overlay">
             <div className="map-back-confirm-card">
