@@ -382,6 +382,7 @@
 
 .tower-overlay-item {
   position: absolute;
+  pointer-events: auto;
 }
 
 .electric-tower {
