@@ -76,6 +76,10 @@ export function MapPage() {
   const [isFetchingRoutes, setIsFetchingRoutes] = useState(false);
   const [gameResult, setGameResult] = useState<"win" | "lose" | null>(null);
   const [hitEnemyIds, setHitEnemyIds] = useState<Set<string>>(new Set());
+  /** 戻る確認ダイアログの状態（MapView から引き上げ） */
+  const [pendingBack, setPendingBack] = useState<"toWaiting" | "toPrep" | null>(null);
+  /** タイマーリセット用キー（新規ゲーム開始時にインクリメント） */
+  const [battleKey, setBattleKey] = useState(0);
   const gameEndCalledRef = useRef(false);
   const homeHpRef = useRef(homeHp);
   /** バトル開始直前の敵スナップショット（準備フェーズへ巻き戻す際に使う） */
@@ -83,10 +87,13 @@ export function MapPage() {
   const hitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { homeHpRef.current = homeHp; }, [homeHp]);
 
+  /** ダイアログ表示中はバトルを一時停止 */
+  const isPaused = pendingBack === "toPrep";
+
   const nearbyPlaces = useNearbyPOI(currentPosition);
 
   // ── カウントダウン ────────────────────────────────────────────
-  const battleRemaining = useCountdown(300, gamePhase === "battle");
+  const battleRemaining = useCountdown(300, gamePhase === "battle" && !isPaused, battleKey);
 
   // ── コンビニバフ検出 ──────────────────────────────────────────
   useEffect(() => {
@@ -125,7 +132,7 @@ export function MapPage() {
   );
 
   useGameSimulation({
-    isActive: gamePhase === "battle",
+    isActive: gamePhase === "battle" && !isPaused,
     homeCoords,
     structures,
     enemies,
@@ -271,10 +278,11 @@ export function MapPage() {
 
   /** battle → prep: 敵を初期配置に戻す。構造物はそのまま */
   const handleReturnToPrep = () => {
+    setBattleKey((k) => k + 1); // タイマーリセット
     if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
     gameEndCalledRef.current = false;
     setHitEnemyIds(new Set());
-    setBattleLog([]);
+
     setEnemies(
       initialEnemiesRef.current.map((e) => ({
         ...e,
@@ -293,6 +301,7 @@ export function MapPage() {
 
   /** prep → waiting: 敵・スポーン情報・構造物をすべてクリア */
   const handleReturnToWaiting = () => {
+    setBattleKey((k) => k + 1); // 次回バトル用にタイマーリセット
     setEnemies([]);
     setEnemySpawnPoints([]);
     setEnemyDisplayRoutes([]);
@@ -303,10 +312,11 @@ export function MapPage() {
   };
 
   const handlePlayAgain = () => {
+    setBattleKey((k) => k + 1); // タイマーリセット
     if (hitTimerRef.current) clearTimeout(hitTimerRef.current);
     resetGame();
     setGameResult(null);
-    setBattleLog([]);
+
     setEnemyDisplayRoutes([]);
     setEnemySpawnPoints([]);
     setSelectedStructureType(null);
@@ -581,6 +591,8 @@ export function MapPage() {
         onReturnToPrep={gamePhase === "battle" ? handleReturnToPrep : undefined}
         onReturnToWaiting={gamePhase === "prep" ? handleReturnToWaiting : undefined}
         onDeleteStructure={handleDeleteStructure}
+        pendingBack={pendingBack}
+        onPendingBackChange={setPendingBack}
       />
 
       {gpsError && !isSpoofing && (

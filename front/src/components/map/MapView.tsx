@@ -76,6 +76,8 @@ export function MapView({
   onReturnToPrep,
   onReturnToWaiting,
   onDeleteStructure,
+  pendingBack,
+  onPendingBackChange,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -104,6 +106,8 @@ export function MapView({
   onReturnToPrep?: () => void;
   onReturnToWaiting?: () => void;
   onDeleteStructure?: (id: string) => void;
+  pendingBack: "toWaiting" | "toPrep" | null;
+  onPendingBackChange: (v: "toWaiting" | "toPrep" | null) => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -116,7 +120,6 @@ export function MapView({
   const [mapStatus, setMapStatus] = useState<
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
-  const [pendingBack, setPendingBack] = useState<"toWaiting" | "toPrep" | null>(null);
   const [pendingDeleteStructure, setPendingDeleteStructure] = useState<Structure | null>(null);
 
   // ── 地図初期化 ────────────────────────────────────────────────
@@ -537,7 +540,7 @@ export function MapView({
             type="button"
             className="map-back-btn"
             aria-label="開始前に戻る"
-            onClick={() => setPendingBack("toWaiting")}
+            onClick={() => onPendingBackChange("toWaiting")}
           >
             ←
           </button>
@@ -547,7 +550,7 @@ export function MapView({
             type="button"
             className="map-back-btn map-back-btn--battle"
             aria-label="準備に戻る"
-            onClick={() => setPendingBack("toPrep")}
+            onClick={() => onPendingBackChange("toPrep")}
           >
             ⏸
           </button>
@@ -596,7 +599,7 @@ export function MapView({
                 <button
                   type="button"
                   className="map-back-confirm-btn map-back-confirm-btn--cancel"
-                  onClick={() => setPendingBack(null)}
+                  onClick={() => onPendingBackChange(null)}
                 >
                   キャンセル
                 </button>
@@ -604,7 +607,7 @@ export function MapView({
                   type="button"
                   className="map-back-confirm-btn map-back-confirm-btn--ok"
                   onClick={() => {
-                    setPendingBack(null);
+                    onPendingBackChange(null);
                     if (pendingBack === "toPrep") onReturnToPrep?.();
                     else onReturnToWaiting?.();
                   }}
