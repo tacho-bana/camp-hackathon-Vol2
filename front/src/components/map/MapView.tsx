@@ -73,8 +73,12 @@ export function MapView({
   onReturnToPrep,
   onReturnToWaiting,
   onDeleteStructure,
+  onPlaceStructure,
+  isPlacingStructure = false,
+  onOpenSettings,
   pendingBack,
   onPendingBackChange,
+  isFetchingRoutes = false,
 }: {
   viewport: MapViewport;
   nearbyPlaces: NearbyPlace[];
@@ -103,8 +107,12 @@ export function MapView({
   onReturnToPrep?: () => void;
   onReturnToWaiting?: () => void;
   onDeleteStructure?: (id: string) => void;
+  onPlaceStructure?: (type: "turret" | "wall") => void;
+  isPlacingStructure?: boolean;
+  onOpenSettings?: () => void;
   pendingBack: "toWaiting" | "toPrep" | null;
   onPendingBackChange: (v: "toWaiting" | "toPrep" | null) => void;
+  isFetchingRoutes?: boolean;
 }) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -123,6 +131,7 @@ export function MapView({
   const [actualZoom, setActualZoom] = useState(13);
   const [isNorthLocked, setIsNorthLocked] = useState(false);
   const [pendingDeleteStructure, setPendingDeleteStructure] = useState<Structure | null>(null);
+  const [pendingPlacement, setPendingPlacement] = useState<"turret" | "wall" | null>(null);
 
   // ── 地図初期化 ────────────────────────────────────────────────
   useEffect(() => {
@@ -624,9 +633,24 @@ export function MapView({
               </span>
               /100
             </span>
+            {gamePhase === "prep" && enemies.length > 0 && (
+              <span style={{ fontSize: "0.82rem", color: "#9aa9bc" }}>
+                敵 {enemies.length} 体が侵攻予定
+              </span>
+            )}
             {(gamePhase === "battle" || gamePhase === "result") && (
               <span>
                 敵 {deadCount}/{enemies.length} 撃破
+              </span>
+            )}
+            {gamePhase === "prep" && isFetchingRoutes && (
+              <span style={{ fontSize: "0.78rem", color: "#9aa9bc" }}>
+                🗺 ルート取得中...
+              </span>
+            )}
+            {gamePhase === "prep" && !isFetchingRoutes && enemyRoutes.length > 0 && (
+              <span style={{ fontSize: "0.78rem", color: "#9aa9bc" }}>
+                🗺 ルート表示中
               </span>
             )}
             <span style={{ fontSize: "0.78rem", color: "#7dd3fc" }}>
@@ -652,6 +676,18 @@ export function MapView({
           </button>
         )}
 
+        {/* 設定ボタン（左下・常時） */}
+        {onOpenSettings && (
+          <button
+            type="button"
+            className="map-settings-btn"
+            aria-label="設定"
+            onClick={onOpenSettings}
+          >
+            ⚙
+          </button>
+        )}
+
         {/* 戻るボタン（アイコンのみ） */}
         {gamePhase === "prep" && onReturnToWaiting && (
           <button
@@ -662,6 +698,75 @@ export function MapView({
           >
             ←
           </button>
+        )}
+
+        {/* 施設配置ボタン（prep フェーズ・左下） */}
+        {gamePhase === "prep" && onPlaceStructure && (
+          <>
+            <button
+              type="button"
+              className="map-place-btn map-place-btn--wall"
+              aria-label="壁を設置"
+              onClick={() => setPendingPlacement("wall")}
+            >
+              🧱
+            </button>
+            <button
+              type="button"
+              className="map-place-btn map-place-btn--turret"
+              aria-label="タレットを設置"
+              onClick={() => setPendingPlacement("turret")}
+            >
+              🔫
+            </button>
+          </>
+        )}
+
+        {/* 施設配置確認ダイアログ */}
+        {pendingPlacement && (
+          <div className="map-back-confirm-overlay">
+            <div className="map-back-confirm-card">
+              <p className="map-back-confirm-msg">
+                {pendingPlacement === "turret"
+                  ? "🔫 タレット\n射程80m・近くの敵を自動攻撃します。\n-100 BTC"
+                  : "🧱 壁\n射程35m・範囲内の敵を減速させます。\n-50 BTC"}
+              </p>
+              {!currentPosition && (
+                <p style={{ margin: 0, fontSize: "0.82rem", color: "#f87171" }}>
+                  GPS 取得中...
+                </p>
+              )}
+              {currentPosition && bitcoin < (pendingPlacement === "turret" ? 100 : 50) && (
+                <p style={{ margin: 0, fontSize: "0.82rem", color: "#f87171" }}>
+                  BTC 不足（必要: {pendingPlacement === "turret" ? 100 : 50} BTC）
+                </p>
+              )}
+              <div className="map-back-confirm-actions">
+                <button
+                  type="button"
+                  className="map-back-confirm-btn map-back-confirm-btn--cancel"
+                  onClick={() => setPendingPlacement(null)}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className="map-back-confirm-btn map-back-confirm-btn--ok"
+                  disabled={
+                    !currentPosition ||
+                    isPlacingStructure ||
+                    bitcoin < (pendingPlacement === "turret" ? 100 : 50)
+                  }
+                  onClick={() => {
+                    onPlaceStructure?.(pendingPlacement);
+                    setPendingPlacement(null);
+                  }}
+                >
+                  {isPlacingStructure ? "設置中..." : "現在地に配置"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
         {gamePhase === "battle" && onReturnToPrep && (
           <button
