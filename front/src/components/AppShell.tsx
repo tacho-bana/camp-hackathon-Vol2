@@ -114,7 +114,11 @@ export function AppShell({
           ))}
         </nav>
 
-        <button type="button" className="ghost-button" onClick={signOut}>
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => void signOut()}
+        >
           ログアウト
         </button>
       </aside>

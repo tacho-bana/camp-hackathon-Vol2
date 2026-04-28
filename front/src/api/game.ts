@@ -1,8 +1,8 @@
 import { post } from "./client";
-import type { GameStateResponse } from "../types/api";
+import type { BaseResponse, GameStateResponse } from "../types/api";
 
-export async function postGameBase(lat: number, lng: number): Promise<GameStateResponse> {
-  return post<GameStateResponse>("/game/base", { lat, lng });
+export async function postGameBase(lat: number, lng: number): Promise<BaseResponse> {
+  return post<BaseResponse>("/game/base", { lat, lng });
 }
 
 export async function postGameStart(difficulty: 1 | 2 | 3): Promise<GameStateResponse> {

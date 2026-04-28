@@ -652,7 +652,10 @@ export function MapPage() {
               <button
                 type="button"
                 className="primary-button"
-                onClick={() => { signOut(); setShowSettings(false); }}
+                onClick={() => {
+                  void signOut();
+                  setShowSettings(false);
+                }}
               >
                 ログアウト
               </button>
