@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://camp-hackathon-vol2.onrender.com/:path*"
+    }
+  ]
+}

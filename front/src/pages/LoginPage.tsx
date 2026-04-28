@@ -7,10 +7,29 @@ export function LoginPage() {
   const [email, setEmail] = useState("riku@example.com");
   const [password, setPassword] = useState("password");
   const [displayName, setDisplayName] = useState("リク");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSignIn = () => {
-    signIn();
-    navigateTo("/map");
+  const handleSignIn = async () => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      await signIn({
+        email,
+        password,
+        name: displayName,
+      });
+      navigateTo("/map");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "ログインに失敗しました",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -57,15 +76,17 @@ export function LoginPage() {
           <button
             type="button"
             className="primary-button floating-action"
-            onClick={handleSignIn}
+            onClick={() => void handleSignIn()}
+            disabled={isSubmitting}
           >
-            新規登録 / ログイン
+            {isSubmitting ? "接続中..." : "新規登録 / ログイン"}
           </button>
         </div>
 
+        {errorMessage && <p className="muted auth-note">{errorMessage}</p>}
+
         <p className="muted auth-note">
-          いまはフロントモックです。入力値はUI確認用で、ボタンを押すと
-          ゲーム画面へ進みます。
+          既存ユーザーがいればログイン、未登録なら新規登録を試みます。
         </p>
       </div>
     </section>

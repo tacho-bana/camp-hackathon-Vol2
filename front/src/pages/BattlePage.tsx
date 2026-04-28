@@ -1,131 +1,92 @@
-import { useMemo, useState } from "react";
-import { BattleFeed } from "../components/battle/BattleFeed";
-import { RewardModal } from "../components/battle/RewardModal";
-import { useAppState } from "../state/AppStateContext";
-import type { BattleEntry } from "../types/game";
+﻿import { useEffect, useState } from "react";
+import { EnemySprite } from "../components/map/EnemySprite";
+import { ElectricTowerSprite } from "../components/map/tower/ElectricTowerSprite";
+import { TalettSprite } from "../components/map/tower/TalettSprite";
+import { FirewallSprite } from "../components/map/tower/FirewallSprite";
+import type { Enemy } from "../types/game";
 
 export function BattlePage() {
-  const [page, setPage] = useState(1);
-  const [showReward, setShowReward] = useState(false);
-  const [localEnemyCount, setLocalEnemyCount] = useState(7);
-  const [tickCount, setTickCount] = useState(0);
-  const { currentBaseSummary, updateBaseSummary, updateWaveSummary } =
-    useAppState();
+  const [wobble, setWobble] = useState(0);
+  const [aimingAngleRad, setAimingAngleRad] = useState(0);
+  const [firing, setFiring] = useState(false);
 
-  const entries = useMemo<BattleEntry[]>(
-    () => [
-      {
-        id: "1",
-        time: "20:12",
-        actor: "スキャナー",
-        message: "アベニュー侵入路で敵ウェーブを検知",
-        tone: "warning",
-      },
-      {
-        id: "2",
-        time: "20:14",
-        actor: "EMPタワー",
-        message: "先頭集団に短時間スタンを付与",
-        tone: "info",
-      },
-      {
-        id: "3",
-        time: "20:18",
-        actor: "ホームビーコン",
-        message: "拠点は持ちこたえ、残敵を外周へ誘導",
-        tone: "success",
-      },
-    ],
-    [],
-  );
-
-  const handleRunTick = () => {
-    setTickCount((value) => value + 1);
-
-    setLocalEnemyCount((current) => {
-      const nextValue = Math.max(0, current - 2);
-      updateWaveSummary({
-        remainingEnemies: nextValue,
-        phase: "defense",
-        nextTickSec: 18,
-      });
-
-      if (nextValue === 0) {
-        setShowReward(true);
+  useEffect(() => {
+    let t = 0;
+    const interval = setInterval(() => {
+      t += 0.1;
+      setWobble(Math.sin(t * 10) * 5); // Wobble animation
+      setAimingAngleRad(t);
+      if (Math.random() < 0.1) {
+        setFiring(true);
+        setTimeout(() => setFiring(false), 200);
       }
+    }, 50);
 
-      return nextValue;
-    });
+    return () => clearInterval(interval);
+  }, []);
 
-    updateBaseSummary({
-      durability: Math.max(0, currentBaseSummary.durability - 1),
-    });
-  };
+  const dummyEnemies: Enemy[] = [
+    { id: "D", state: "moving", hp: 10, maxHp: 10, lat: 0, lng: 0, speed: 1 }, // Triangle
+    { id: "A", state: "moving", hp: 10, maxHp: 10, lat: 0, lng: 0, speed: 1 }, // Circle
+    { id: "B", state: "moving", hp: 10, maxHp: 10, lat: 0, lng: 0, speed: 1 }, // House
+    { id: "C", state: "moving", hp: 10, maxHp: 10, lat: 0, lng: 0, speed: 1 }, // Worm
+  ];
+
+  const previewStyle = {
+    display: "flex",
+    gap: "30px",
+    flexWrap: "wrap",
+    padding: "20px",
+    background: "#222",
+    borderRadius: "8px",
+    marginBottom: "20px",
+    minHeight: "120px",
+    alignItems: "center",
+  } as const;
+
+  const itemStyle = {
+    position: "relative",
+    width: 64,
+    height: 72,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    border: "1px dashed #555",
+  } as const;
 
   return (
-    <section className="content-panel stack-layout">
+    <section className="content-panel stack-layout" style={{ overflowY: 'auto' }}>
       <div className="panel-header">
         <div>
-          <p className="eyebrow">防衛フェーズ</p>
-          <h2>ティック駆動オート防衛</h2>
+          <p className="eyebrow">Debug mode</p>
+          <h2>Sprites Preview</h2>
           <p className="muted">
-            API連携を想定した、敵の拠点進軍シミュレーションです。
+            Preview of all towers and enemies, firing and wobbling.
           </p>
         </div>
-        <div className="inline-controls">
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => setPage((value) => Math.max(1, value - 1))}
-          >
-            前へ
-          </button>
-          <span className="page-pill">ページ {page}</span>
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => setPage((value) => value + 1)}
-          >
-            次へ
-          </button>
+      </div>
+
+      <h3>Towers</h3>
+      <div style={previewStyle}>
+        <div style={itemStyle}>
+          <ElectricTowerSprite aimingAngleRad={aimingAngleRad} firing={firing} wobble={wobble} />
+        </div>
+        <div style={itemStyle}>
+          <TalettSprite aimingAngleRad={aimingAngleRad} firing={firing} wobble={wobble} />
+        </div>
+        <div style={itemStyle}>
+          <FirewallSprite aimingAngleRad={aimingAngleRad} firing={firing} wobble={wobble} />
         </div>
       </div>
 
-      <div className="grid-cards two-up">
-        <article className="feature-card stat-card">
-          <strong>{localEnemyCount}</strong>
-          <span>残敵数</span>
-        </article>
-        <article className="feature-card stat-card">
-          <strong>{tickCount}</strong>
-          <span>実行ティック数</span>
-        </article>
+      <h3>Enemies (Triangle, Circle, House, Worm)</h3>
+      <div style={previewStyle}>
+        {dummyEnemies.map(enemy => (
+          <div key={enemy.id} style={itemStyle}>
+            <EnemySprite enemy={enemy} />
+          </div>
+        ))}
       </div>
-
-      <BattleFeed entries={entries} />
-
-      <button
-        type="button"
-        className="primary-button align-left"
-        onClick={handleRunTick}
-      >
-        防衛ティックを実行
-      </button>
-
-      <button
-        type="button"
-        className="ghost-button align-left"
-        onClick={() => setShowReward(true)}
-      >
-        報酬プレビューを開く
-      </button>
-
-      <RewardModal
-        open={showReward}
-        title="夜間防衛の報酬"
-        description="オート防衛成功: +120 XP、パルスセル +1、修理キット +1"
-        onClose={() => setShowReward(false)}
-      />
     </section>
   );
 }

@@ -8,6 +8,7 @@ import {
   type EnemyModel,
 } from "../../features/enemy";
 import type { Enemy } from "../../types/game";
+import { HouseSprite } from "./enemy/HouseSprite";
 
 const enemyKinds: EnemyKind[] = ["triangle", "circle", "house", "worm"];
 
@@ -63,6 +64,10 @@ export function EnemySprite({ enemy }: { enemy: Enemy }) {
   }, [enemy.hp, enemy.maxHp, enemy.state]);
 
   useEffect(() => {
+    if (modelRef.current.kind === "house") {
+      return;
+    }
+
     if (!containerRef.current) {
       return;
     }
@@ -98,6 +103,14 @@ export function EnemySprite({ enemy }: { enemy: Enemy }) {
       sketch.remove();
     };
   }, []);
+
+  if (modelRef.current.kind === "house") {
+    return (
+      <div className="enemy-overlay-canvas">
+        <HouseSprite enemy={enemy} />
+      </div>
+    );
+  }
 
   return <div ref={containerRef} className="enemy-overlay-canvas" />;
 }

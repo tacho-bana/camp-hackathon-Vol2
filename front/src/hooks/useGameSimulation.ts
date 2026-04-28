@@ -3,8 +3,8 @@ import type { Enemy, LatLng, Structure } from "../types/game";
 import { calcDistance } from "../utils/geo";
 
 // ── 定数 ─────────────────────────────────────────────────────────
-const TICK_MS = 1000;
-const ENEMY_SPEED_MPS = 2.5;
+const TICK_MS = 500;
+const ENEMY_SPEED_MPS = 5;
 const BASE_REACH_M = 12;
 const WAYPOINT_REACH_M = 3;
 const ENEMY_BASE_DAMAGE = 8;
@@ -12,7 +12,7 @@ const TURRET_RANGE_M = 80;
 const TURRET_BASE_DAMAGE = 22;
 const TURRET_COOLDOWN_TICKS = 2;
 const WALL_RANGE_M = 35;
-const WALL_SLOW_FACTOR = 0.35;
+const WALL_SLOW_FACTOR = 0.4;
 // ─────────────────────────────────────────────────────────────────
 
 /** バトル中に発生するイベント */

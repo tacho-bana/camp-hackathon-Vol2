@@ -20,17 +20,17 @@ export type LoginRequest = {
   password: string;
 };
 
-/** POST /auth/login → response */
-export type TokenResponse = {
-  access_token: string;
-  token_type: string;
+/** 共通 auth response */
+export type AuthResponse = {
+  message: string;
+  user: UserResponse;
 };
 
 /** GET /auth/me → response */
 export type UserResponse = {
   id: string;
   email: string;
-  name: string;
+  name: string | null;
   level: number;
   xp: number;
 };
@@ -46,6 +46,17 @@ export type BaseSetupRequest = {
   name?: string;
 };
 
+/** POST /game/base → response */
+export type BaseResponse = {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  hp: number;
+  max_hp: number;
+  shield: number;
+};
+
 /** POST /game/start */
 export type StageSelectRequest = {
   difficulty: number; // 1〜5
@@ -57,6 +68,7 @@ export type GameStateResponse = {
   status: "pending" | "active" | "cleared" | "failed";
   difficulty: number;
   started_at: string; // ISO 8601
+  enemy_count: number;
 };
 
 // -------------------------------------------------------
@@ -77,12 +89,17 @@ export type PlaceStructureRequest = {
 export type StructureResponse = {
   id: string;
   type: StructureApiType;
+  name: string;
   lat: number;
   lng: number;
   hp: number;
   max_hp: number;
   attack: number;
   range_m: number;
+  duration_sec: number;
+  placed_at: string;
+  rarity: string;
+  metadata_json: Record<string, unknown>;
 };
 
 // -------------------------------------------------------
@@ -95,6 +112,7 @@ export type EnemyState = "spawned" | "moving" | "attacking" | "dead";
 /** GET /enemies/ の要素 */
 export type EnemyResponse = {
   id: string;
+  wave_id: string | null;
   enemy_type: string;
   name: string;
   hp: number;
@@ -102,6 +120,9 @@ export type EnemyResponse = {
   lat: number;
   lng: number;
   state: EnemyState;
+  attack: number;
+  speed: number;
+  spawned_at: string;
 };
 
 /** ウェーブの進行ルート上の点 */
@@ -110,11 +131,17 @@ export type RoutePoint = {
   lng: number;
 };
 
+export type EnemyRoute = {
+  enemy_id: string;
+  mode: string;
+  points: RoutePoint[];
+};
+
 /** GET /enemies/wave/{id} → response */
 export type WaveResponse = {
   wave_id: string;
   difficulty: number;
   status: "pending" | "active" | "cleared" | "failed";
   enemies: EnemyResponse[];
-  route: RoutePoint[];
+  route: EnemyRoute[];
 };
