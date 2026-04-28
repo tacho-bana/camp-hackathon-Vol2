@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type {
@@ -121,6 +121,16 @@ export function MapView({
     "loading" | "ready" | "missing-token" | "error"
   >(mapboxToken ? "loading" : "missing-token");
   const [pendingDeleteStructure, setPendingDeleteStructure] = useState<Structure | null>(null);
+  const savedBearingRef = useRef(-12);
+  const savedPitchRef = useRef(35);
+  const [enemyOverlayItems, setEnemyOverlayItems] = useState<EnemyOverlayItem[]>(
+    [],
+  );
+  const [mapStatus, setMapStatus] = useState<
+    "loading" | "ready" | "missing-token" | "error"
+  >(mapboxToken ? "loading" : "missing-token");
+  const [actualZoom, setActualZoom] = useState(13);
+  const [isNorthLocked, setIsNorthLocked] = useState(false);
 
   // ── 地図初期化 ────────────────────────────────────────────────
   useEffect(() => {
@@ -137,10 +147,16 @@ export function MapView({
     });
 
     map.addControl(
-      new mapboxgl.NavigationControl({ visualizePitch: true }),
+      new mapboxgl.NavigationControl({ visualizePitch: true, showCompass: false }),
       "top-right",
     );
-    map.on("load", () => setMapStatus("ready"));
+
+    map.on("zoom", () => setActualZoom(map.getZoom()));
+
+    map.on("load", () => {
+      setMapStatus("ready");
+    });
+
     map.on("error", (e) => {
       console.error("[MapView]", e.error);
       setMapStatus("error");
@@ -449,12 +465,53 @@ export function MapView({
   const deadCount = enemies.filter((e) => e.state === "dead").length;
 
   // ── レンダー ──────────────────────────────────────────────────
+  const handleCompassToggle = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!isNorthLocked) {
+      savedBearingRef.current = map.getBearing();
+      savedPitchRef.current = map.getPitch();
+      map.easeTo({ bearing: 0, pitch: 0, duration: 300 });
+      setIsNorthLocked(true);
+    } else {
+      map.easeTo({ bearing: savedBearingRef.current, pitch: savedPitchRef.current, duration: 300 });
+      setIsNorthLocked(false);
+    }
+  }, [isNorthLocked]);
+
   return (
     <section className="map-view">
       <div className="map-canvas">
         <div ref={mapContainerRef} className="mapbox-container" />
 
-        {/* 敵スプライトオーバーレイ */}
+        <button
+          type="button"
+          className="map-compass-toggle"
+          onClick={handleCompassToggle}
+          aria-label={isNorthLocked ? "ベアリングを元に戻す" : "北を上に固定"}
+          style={{
+            position: "absolute",
+            top: 78,
+            right: 10,
+            zIndex: 3,
+            width: 29,
+            height: 29,
+            borderRadius: 4,
+            border: "none",
+            background: isNorthLocked ? "#38bdf8" : "rgba(15,23,42,0.9)",
+            color: isNorthLocked ? "#07111b" : "#d7e0ea",
+            cursor: "pointer",
+            fontSize: 14,
+            fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0 0 1px rgba(148,163,184,0.2)",
+          }}
+        >
+          N
+        </button>
+
         <div className="enemy-overlay-layer" aria-hidden="true">
           {enemyOverlayItems.map((item) => (
             <div
@@ -467,7 +524,40 @@ export function MapView({
           ))}
         </div>
 
-        {/* ステータスカード（左上） */}
+        <div className="map-overlay map-overlay-top">
+          <span>
+            表示範囲: {viewport.x}, {viewport.y}
+          </span>
+          <span>ズーム: {actualZoom.toFixed(1)}x</span>
+        </div>
+
+        <div className="map-layer-stack">
+          <BaseMarker
+            label="拠点コア"
+            active={selectedMarker === "base-core"}
+          />
+          <StructureLayer structures={structures} />
+          <EnemyLayer enemies={enemies} />
+          <div className="map-place-list">
+            {nearbyPlaces.map((place) => (
+              <PlaceMarker
+                key={place.id}
+                place={place}
+                selected={selectedMarker === place.id}
+                deployed={deployedStructures.includes(place.id)}
+                onClick={() => onSelectMarker(place.id)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {placementPreview ? (
+          <div className="placement-preview">
+            プレビュー {placementPreview.kind} @ {placementPreview.x},
+            {placementPreview.y}
+          </div>
+        ) : null}
+
         {mapStatus !== "ready" ? (
           <div className="map-status-card">
             <strong>地図読み込み中</strong>

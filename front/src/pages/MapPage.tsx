@@ -195,6 +195,12 @@ export function MapPage() {
 
   // ── ハンドラー ────────────────────────────────────────────────
 
+  // waiting → difficulty（位置情報は不要）
+  const handleGoToDifficulty = () => {
+    setGamePhase("difficulty");
+  };
+
+  // difficulty → prep（postGameBase で本拠地を設定）
   const handleStartGame = async () => {
     if (!currentPosition || isStartingGame) return;
     setIsStartingGame(true);
@@ -552,6 +558,16 @@ export function MapPage() {
 
       {/* 右下フローティング CTA（waiting のみ） */}
       {gamePhase === "waiting" && (
+        <button
+          type="button"
+          className="primary-button floating-action"
+          onClick={handleGoToDifficulty}
+        >
+          ゲームを始める
+        </button>
+      )}
+
+      {gamePhase === "difficulty" && (
         <button
           type="button"
           className="primary-button floating-action"

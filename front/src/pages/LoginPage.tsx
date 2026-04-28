@@ -17,7 +17,7 @@ export function LoginPage() {
     <section className="auth-screen auth-layout">
       <div className="hero-panel auth-panel">
         <p className="eyebrow">サインイン</p>
-        <h1>アーバン防衛ウォーカー</h1>
+        <h1>ネイバーセキュリティ</h1>
         <p className="lead">
           実際の移動を施設展開に変換し、夜間のオート防衛で自宅エリアを
           守り抜きます。まずはログインか新規登録から始めてください。

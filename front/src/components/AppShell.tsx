@@ -50,7 +50,7 @@ export function AppShell({
         >
           ≡
         </button>
-        <strong>ARMA</strong>
+        <strong>ネイバーセキュリティ</strong>
       </header>
 
       {isDrawerOpen && (
@@ -62,11 +62,11 @@ export function AppShell({
 
       <aside className={isDrawerOpen ? "side-rail open" : "side-rail"}>
         <div className="brand-block">
-          <p className="eyebrow">単独防衛作戦</p>
-          <h1>アーバンループ司令コンソール</h1>
+          <p className="eyebrow">家庭ネットワーク防衛</p>
+          <h1>ネイバーセキュリティ</h1>
           <p className="muted">
-            外を歩いて施設を展開し、オートバトルの進行に合わせて
-            自宅エリアを防衛します。
+            街を歩いて防衛拠点を設置し、家のルーターに侵入してくる
+            ウイルスから家庭ネットワークを守ります。
           </p>
         </div>
 

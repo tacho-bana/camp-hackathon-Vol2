@@ -24,25 +24,17 @@ const loopCards = [
   },
 ] as const;
 
-const roadmap = [
-  "フェーズ1: マップ表示、ログイン、拠点エリア設定",
-  "フェーズ2: POI取得、チェックイン、施設変換",
-  "フェーズ3: 敵ウェーブ、ティック移動、サーバー側戦闘解決",
-  "フェーズ4: 夜間レポート、報酬、施設期限切れ",
-  "フェーズ5: A*経路探索、ボス戦、PWA仕上げ",
-];
-
 export function HomePage() {
   return (
     <section className="content-panel stack-layout">
       <div className="panel-header">
         <div>
           <p className="eyebrow">ミッションボード</p>
-          <h2>単独タワーディフェンス・ウォーカー</h2>
+          <h2>ネイバーセキュリティ</h2>
         </div>
         <p className="muted">
-          フロントエンドMVPは、PvPや協力プレイを除いた
-          1人用のコアループに集中しています。
+          街を歩いて防衛拠点を設置し、家のルーターに迫るウイルスを
+          迎撃する1人用タワーディフェンス。
         </p>
       </div>
 
@@ -61,15 +53,6 @@ export function HomePage() {
           </article>
         ))}
       </div>
-
-      <article className="feature-card roadmap-card">
-        <strong>開発ロードマップ</strong>
-        <div className="roadmap-list">
-          {roadmap.map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-        </div>
-      </article>
 
       <div className="grid-cards">
         <button
